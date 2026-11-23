@@ -87,6 +87,10 @@ final class ProfileStore {
         o.put("ictCredentialSlot", p.ictCredentialSlot);
         o.put("ictFormatSlot", p.ictFormatSlot);
         o.put("ictLinkageSlot", p.ictLinkageSlot);
+        o.put("cardType", p.cardType.name());
+        o.put("classicSector", p.classicSector);
+        o.put("classicKeyA", Hex.encode(p.classicKeyA));
+        o.put("classicKeyB", Hex.encode(p.classicKeyB));
         return o.toString(2);
     }
 
@@ -111,6 +115,14 @@ final class ProfileStore {
         p.ictCredentialSlot = o.optInt("ictCredentialSlot", 7);
         p.ictFormatSlot = o.optInt("ictFormatSlot", 6);
         p.ictLinkageSlot = o.optInt("ictLinkageSlot", 6);
+        p.cardType = CardProfile.CardType.valueOf(o.optString("cardType", "DESFIRE"));
+        p.classicSector = o.optInt("classicSector", 1);
+        if (o.has("classicKeyA") && o.has("classicKeyB")) {
+            p.classicKeyA = Hex.decode(o.getString("classicKeyA"));
+            p.classicKeyB = Hex.decode(o.getString("classicKeyB"));
+        } else {
+            p.generateClassicKeys(new java.security.SecureRandom()); // profiles saved before Classic support
+        }
         p.validate();
         return p;
     }

@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** High-level flows: encode a blank card, verify it, and wipe it back to factory state. */
-public final class CardEncoder {
+public final class CardEncoder implements CredentialEncoder {
 
     public interface Log {
         void step(String message);

@@ -14,6 +14,8 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.TagLostException;
 import android.nfc.tech.IsoDep;
+import android.nfc.tech.MifareClassic;
+import android.nfc.tech.TagTechnology;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
@@ -40,6 +42,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import nz.cardforge.desfire.CardEncoder;
 import nz.cardforge.desfire.CardProfile;
+import nz.cardforge.desfire.ClassicEncoder;
+import nz.cardforge.desfire.CredentialEncoder;
 import nz.cardforge.desfire.Credential;
 import nz.cardforge.desfire.DesfireException;
 import nz.cardforge.desfire.DesfireSession;
@@ -65,7 +69,9 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     private EditText siteIn, cardIn;
     private CheckBox autoInc, overwrite, wipeArmed;
     private EditText aidIn, keyslotIn, sysIdIn, piccIn, masterIn, readIn, writeIn;
-    private Spinner formatSpin, commSpin;
+    private Spinner formatSpin, commSpin, typeSpin;
+    private EditText sectorIn, classicAIn, classicBIn;
+    private View[] desfireViews, classicViews;
     private CheckBox divBox, lockBox, revealBox;
 
     // ------------------------------------------------------------------ lifecycle
@@ -122,14 +128,11 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     @Override
     public void onTagDiscovered(Tag tag) {
         if (!busy.compareAndSet(false, true)) return;
-        IsoDep iso = IsoDep.get(tag);
+        TagTechnology conn = null;
         try {
-            if (iso == null) {
-                ui(() -> setStatus("Not a DESFire card (no ISO-DEP).", RED));
-                return;
-            }
             final Mode m = mode;
             final CardProfile p = profile;
+            final boolean classic = p.cardType == CardProfile.CardType.CLASSIC;
             if (m == Mode.KEYS) {
                 ui(() -> setStatus("Switch to Encode, Verify or Wipe to use a card.", GREY));
                 return;
@@ -153,10 +156,32 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
                 cred = new Credential(p.format, Long.parseLong((String) form[0]), Long.parseLong((String) form[1]));
             }
 
-            iso.connect();
-            iso.setTimeout(3000);
-            DesfireSession session = new DesfireSession(iso::transceive);
-            CardEncoder enc = new CardEncoder(session, p, tag.getId(), this::logLine);
+            CredentialEncoder enc;
+            if (classic) {
+                MifareClassic mfc = MifareClassic.get(tag);
+                if (mfc == null) {
+                    boolean desfire = IsoDep.get(tag) != null;
+                    ui(() -> setStatus(desfire
+                            ? "That's a DESFire card - switch Card type to DESFire in Keys."
+                            : "Can't open as MIFARE Classic. Either it's not a Classic card, or this phone's NFC chip doesn't support Classic (many Samsung/Pixel phones don't).", RED));
+                    return;
+                }
+                conn = mfc;
+                mfc.connect();
+                mfc.setTimeout(1000);
+                enc = new ClassicEncoder(new AndroidClassic(mfc), p, tag.getId(), this::logLine);
+            } else {
+                IsoDep iso = IsoDep.get(tag);
+                if (iso == null) {
+                    ui(() -> setStatus("Not a DESFire card (no ISO-DEP). If it's MIFARE Classic, change Card type in Keys.", RED));
+                    return;
+                }
+                conn = iso;
+                iso.connect();
+                iso.setTimeout(3000);
+                DesfireSession session = new DesfireSession(iso::transceive);
+                enc = new CardEncoder(session, p, tag.getId(), this::logLine);
+            }
 
             switch (m) {
                 case ENCODE: {
@@ -189,14 +214,14 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         } catch (NumberFormatException e) {
             ui(() -> setStatus("Enter a numeric site code and card ID.", RED));
         } catch (TagLostException e) {
-            ui(() -> setStatus("Card moved away mid-write. Hold it still and tap again (Overwrite if needed).", RED));
+            ui(() -> setStatus("Card moved away mid-write. Hold it still and tap again (tick Overwrite if needed).", RED));
         } catch (IOException e) {
             ui(() -> setStatus("Communication error: " + e.getMessage(), RED));
         } catch (DesfireException | RuntimeException e) {
             ui(() -> setStatus(e.getMessage(), RED));
         } finally {
             try {
-                if (iso != null) iso.close();
+                if (conn != null) conn.close();
             } catch (IOException ignored) {
             }
             busy.set(false);
@@ -274,7 +299,7 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
 
         // Encode
         encodePanel = panel(root);
-        hint(encodePanel, "Fill in the credential, then hold a blank DESFire EV1/EV2/EV3 card to the back of the phone.");
+        hint(encodePanel, "Fill in the credential, then hold a blank card (type set in Keys) to the back of the phone.");
         siteIn = field(encodePanel, "Site code", InputType.TYPE_CLASS_NUMBER);
         cardIn = field(encodePanel, "Card ID", InputType.TYPE_CLASS_NUMBER);
         siteIn.setText(state.getString("site", "1"));
@@ -294,6 +319,7 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         // Keys
         keysPanel = panel(root);
         hint(keysPanel, "Site settings. These must match the ICT reader config. Changing keys or AID after cards are issued makes those cards unreadable.");
+        typeSpin = spinner(keysPanel, "Card type", new String[] {"MIFARE DESFire EV1/EV2/EV3 (secure)", "MIFARE Classic 1K/4K (legacy)"});
         aidIn = field(keysPanel, "DESFire application ID (6 hex)", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
         formatSpin = spinner(keysPanel, "Credential format", new String[] {
                 Credential.Format.W26.label, Credential.Format.W34.label, Credential.Format.RAW48.label});
@@ -308,6 +334,18 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         writeIn = field(keysPanel, "Write key (key 2) - phone only", 0);
         masterIn = field(keysPanel, "App master key (key 0) - phone only", 0);
         piccIn = field(keysPanel, "Card master key - phone only", 0);
+        sectorIn = field(keysPanel, "Classic sector (1-15) - credential goes in its first block", InputType.TYPE_CLASS_NUMBER);
+        classicAIn = field(keysPanel, "Classic Key A (12 hex) - read key, goes into the reader", 0);
+        classicBIn = field(keysPanel, "Classic Key B (12 hex) - write key, phone only", 0);
+        desfireViews = new View[] {box(aidIn), box(commSpin), divBox, box(sysIdIn), lockBox, box(readIn), box(writeIn), box(masterIn), box(piccIn)};
+        classicViews = new View[] {box(sectorIn), box(classicAIn), box(classicBIn)};
+        typeSpin.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) { showTypeFields(); }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
         setKeysVisible(false);
         button(keysPanel, "Generate new random keys", v -> confirmGenerate());
         button(keysPanel, "Save", v -> saveKeys());
@@ -344,15 +382,27 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     }
 
     private EditText field(LinearLayout parent, String label, int inputType) {
+        LinearLayout c = panel(parent);
         TextView l = new TextView(this);
         l.setText(label);
         l.setPadding(0, dp(8), 0, 0);
-        parent.addView(l);
+        c.addView(l);
         EditText e = new EditText(this);
         if (inputType != 0) e.setInputType(inputType);
         e.setSingleLine(true);
-        parent.addView(e);
+        c.addView(e);
         return e;
+    }
+
+    /** The labelled container a field or spinner lives in. */
+    private static View box(View v) { return (View) v.getParent(); }
+
+    private boolean classicSelected() { return typeSpin.getSelectedItemPosition() == 1; }
+
+    private void showTypeFields() {
+        boolean classic = classicSelected();
+        for (View v : desfireViews) v.setVisibility(classic ? View.GONE : View.VISIBLE);
+        for (View v : classicViews) v.setVisibility(classic ? View.VISIBLE : View.GONE);
     }
 
     private CheckBox check(LinearLayout parent, String text, boolean checked) {
@@ -364,15 +414,16 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     }
 
     private Spinner spinner(LinearLayout parent, String label, String[] items) {
+        LinearLayout c = panel(parent);
         TextView l = new TextView(this);
         l.setText(label);
         l.setPadding(0, dp(8), 0, 0);
-        parent.addView(l);
+        c.addView(l);
         Spinner s = new Spinner(this);
         ArrayAdapter<String> a = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, items);
         a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         s.setAdapter(a);
-        parent.addView(s);
+        c.addView(s);
         return s;
     }
 
@@ -387,7 +438,7 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     private void setKeysVisible(boolean visible) {
         int type = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                 | (visible ? InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD : InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        for (EditText e : new EditText[] {readIn, writeIn, masterIn, piccIn}) {
+        for (EditText e : new EditText[] {readIn, writeIn, masterIn, piccIn, classicAIn, classicBIn}) {
             e.setInputType(type);
             e.setTypeface(Typeface.MONOSPACE);
         }
@@ -429,19 +480,32 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         writeIn.setText(Hex.encode(p.writeKey));
         masterIn.setText(Hex.encode(p.appMasterKey));
         piccIn.setText(Hex.encode(p.piccMasterKey));
-        profileSummary.setText(String.format("AID %06X · %s · %s%s", p.aid, p.format.name(), p.comm.name(), p.diversify ? " · AV2" : ""));
+        boolean classic = p.cardType == CardProfile.CardType.CLASSIC;
+        typeSpin.setSelection(classic ? 1 : 0);
+        sectorIn.setText(String.valueOf(p.classicSector));
+        classicAIn.setText(Hex.encode(p.classicKeyA));
+        classicBIn.setText(Hex.encode(p.classicKeyB));
+        showTypeFields();
+        profileSummary.setText(classic
+                ? String.format("MIFARE Classic · sector %d (block %d) · %s", p.classicSector, p.classicBlock(), p.format.name())
+                : String.format("DESFire · AID %06X · %s · %s%s", p.aid, p.format.name(), p.comm.name(), p.diversify ? " · AV2" : ""));
     }
 
     private void confirmGenerate() {
         new AlertDialog.Builder(this)
-                .setTitle("Generate new keys?")
-                .setMessage("Cards already encoded with the current keys will stop working, and the ICT reader must be re-programmed with the new read key.")
+                .setTitle(classicSelected() ? "Generate new Classic keys?" : "Generate new DESFire keys?")
+                .setMessage("Only the keys for the selected card type change. Cards already encoded with the current keys will stop working, and the ICT reader must be re-programmed with the new read key.")
                 .setPositiveButton("Generate", (d, w) -> {
                     CardProfile g = CardProfile.generate(new SecureRandom());
-                    readIn.setText(Hex.encode(g.readKey));
-                    writeIn.setText(Hex.encode(g.writeKey));
-                    masterIn.setText(Hex.encode(g.appMasterKey));
-                    piccIn.setText(Hex.encode(g.piccMasterKey));
+                    if (classicSelected()) {
+                        classicAIn.setText(Hex.encode(g.classicKeyA));
+                        classicBIn.setText(Hex.encode(g.classicKeyB));
+                    } else {
+                        readIn.setText(Hex.encode(g.readKey));
+                        writeIn.setText(Hex.encode(g.writeKey));
+                        masterIn.setText(Hex.encode(g.appMasterKey));
+                        piccIn.setText(Hex.encode(g.piccMasterKey));
+                    }
                     setStatus("New keys generated - tap Save.", GREY);
                 })
                 .setNegativeButton("Cancel", null)
@@ -462,6 +526,10 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
             p.writeKey = Hex.decode(writeIn.getText().toString().trim());
             p.appMasterKey = Hex.decode(masterIn.getText().toString().trim());
             p.piccMasterKey = Hex.decode(piccIn.getText().toString().trim());
+            p.cardType = classicSelected() ? CardProfile.CardType.CLASSIC : CardProfile.CardType.DESFIRE;
+            p.classicSector = Integer.parseInt(sectorIn.getText().toString().trim());
+            p.classicKeyA = Hex.decode(classicAIn.getText().toString().trim());
+            p.classicKeyB = Hex.decode(classicBIn.getText().toString().trim());
             CardProfile old = profile;
             p.ictCredentialSlot = old.ictCredentialSlot;
             p.ictFormatSlot = old.ictFormatSlot;

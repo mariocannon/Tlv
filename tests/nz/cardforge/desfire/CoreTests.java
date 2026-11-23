@@ -69,6 +69,8 @@ public final class CoreTests {
                 }
             }
         }
+        System.out.println("End-to-end: MIFARE Classic");
+        classicEndToEnd(rnd);
         System.out.println("\nAll " + passed + " checks passed.");
     }
 
@@ -115,5 +117,45 @@ public final class CoreTests {
         enc.wipe();
         check(card.apps.isEmpty(), tag + ": wipe deletes app");
         check(!card.piccKey.aes && Arrays.equals(card.piccKey.k, new byte[16]) && card.piccSettings == 0x0F, tag + ": wipe restores factory PICC");
+    }
+
+    static void classicEndToEnd(SecureRandom rnd) throws Exception {
+        CardProfile p = CardProfile.generate(rnd);
+        p.cardType = CardProfile.CardType.CLASSIC;
+        p.validate();
+        check(p.ictKeyslotTlv().equals("0307" + Hex.encode(p.classicKeyA) + "02"), "Classic: ICT keyslot TLV 03 07 <KeyA> 02");
+        check(p.ictConfig(true).contains("Block            : 4"), "Classic: ICT config says block 4");
+
+        ClassicSim card = new ClassicSim();
+        StringBuilder log = new StringBuilder();
+        ClassicEncoder enc = new ClassicEncoder(card, p, card.uid, m -> log.append(m).append('\n'));
+        enc.encode(new Credential(Credential.Format.W34, 123, 4567), false);
+        eqHex(Arrays.copyOf(card.blocks[4], 4), "007B11D7", "Classic: block 4 starts with site 123 / card 4567");
+        eqHex(Arrays.copyOfRange(card.blocks[7], 6, 10), "78778869", "Classic: trailer access bits 78 77 88 69");
+        eqHex(Arrays.copyOf(card.blocks[7], 6), Hex.encode(p.classicKeyA), "Classic: Key A set");
+
+        // Simulated ICT reader: Key A reads but cannot write.
+        check(card.authA(1, p.classicKeyA), "Classic: reader Key A authenticates");
+        eqHex(Arrays.copyOf(card.readBlock(4), 4), "007B11D7", "Classic: reader reads credential");
+        expectError(() -> card.writeBlock(4, new byte[16]), "Classic: Key A cannot write data");
+        expectError(() -> card.writeBlock(7, Hex.concat(ClassicEncoder.KEY_FF, ClassicEncoder.ACCESS_FACTORY, ClassicEncoder.KEY_FF)),
+                "Classic: Key A cannot change keys");
+        check(!card.authA(1, ClassicEncoder.KEY_FF), "Classic: default key no longer works");
+
+        expectError(() -> enc.encode(new Credential(Credential.Format.W34, 1, 1), false), "Classic: refuses re-encode without overwrite");
+        enc.encode(new Credential(Credential.Format.W26, 9, 42), true);
+        check(enc.verify().card == 42, "Classic: overwrite works");
+        for (int s = 0; s < 16; s++) if (s != 1) ClassicSim.cond(card.blocks[s * 4 + 3], 0);
+        check(true, "Classic: other sectors untouched / valid");
+
+        enc.wipe();
+        eqHex(card.blocks[7], "FFFFFFFFFFFFFF078069FFFFFFFFFFFF", "Classic: wipe restores factory trailer");
+        check(CardProfile.isZero(card.blocks[4]), "Classic: wipe clears data");
+
+        CardProfile other = CardProfile.generate(rnd);
+        other.cardType = CardProfile.CardType.CLASSIC;
+        enc.encode(new Credential(Credential.Format.W34, 5, 5), false);
+        expectError(() -> new ClassicEncoder(card, other, card.uid, m -> {}).encode(new Credential(Credential.Format.W34, 1, 1), true),
+                "Classic: foreign keys -> refuses (card belongs to another system)");
     }
 }

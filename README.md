@@ -1,4 +1,4 @@
-# CardForge: custom-key DESFire cards for ICT readers
+# CardForge: custom-key DESFire & MIFARE Classic cards for ICT readers
 
 An Android app that encodes MIFARE DESFire EV1/EV2/EV3 cards with **your own AES keys** from the phone. It also prints the exact Protege Config App settings, including the **Keyslot hex TLV**, so your ICT reader (OSDP output) can read the cards.
 
@@ -55,6 +55,20 @@ Power-cycle the reader and apply the config within 2 minutes.
 * **AV2 diversification**: every card gets its own keys, derived from its UID (NXP AN10922). Turn it on in both the app and the reader ("AV2 Diversification"). ICT doesn't document its AV2 system identifier, so leave the system ID blank. If cards then fail to read, ICT's variant uses different input, so switch diversification off again.
 * **Lock card master key**: replaces the factory DES card key with your AES key, so nobody can delete your application. **Wipe** reverses it.
 
+## MIFARE Classic option
+
+Under **Keys → Card type**, choose **MIFARE Classic 1K/4K** and tap **Generate new random keys** (this only changes the Classic keys). Then **Save**.
+
+* Card layout: sector 1 by default. Block 4 holds the credential (same byte layout as DESFire), blocks 5–6 are zeroed, and block 7 is the trailer `KeyA | 78 77 88 69 | KeyB`.
+* **Key A = read key** goes into the reader. **Key B = write key** stays on the phone. Access bits `78 77 88` mean Key A can read but never write data or change keys.
+* ICT config (the app shows it filled in):
+  1. Hex TLV `0307<12 hex Key A>02` (type 03, length 07: 6-byte key + keyslot)
+  2. Access Credentials: Slot 7 · Mifare Classic · Block 4 · Key Type A · Keyslot 2 · no Diversify Key flag
+  3. Format slot, Card Linkage, OSDP: same as DESFire
+* **Wipe** restores the factory trailer (`FFFFFFFFFFFF FF078069 FFFFFFFFFFFF`) so the card can be reused.
+* **Phone support:** Android can only do MIFARE Classic if the phone has an NXP NFC chip. Many Samsung and Pixel phones can't. If the app says it can't open the card as Classic, that's the phone, not the card.
+* **Security:** Classic's Crypto1 is broken, and cards can be cloned with cheap tools in minutes. Use it for legacy sites or low-risk doors. Use DESFire anywhere security matters.
+
 ## Security notes (keys on the phone)
 
 * Keys are stored encrypted with a non-exportable Android Keystore key. Backups are disabled, and screenshots of the app are blocked.
@@ -74,4 +88,5 @@ Power-cycle the reader and apply the config within 2 minutes.
 * `desfire/CardProfile.java`: keys, AID, file settings, ICT config generator
 * `desfire/Credential.java`: on-card data layout
 * `desfire/KeyDiversifier.java`: AN10922 AES-128
+* `desfire/ClassicEncoder.java` + `AndroidClassic.java`: MIFARE Classic encode / verify / wipe
 * `MainActivity.java`, `ProfileStore.java`: Android UI, NFC, Keystore storage
