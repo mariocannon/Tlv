@@ -3,15 +3,17 @@
 Installers and site owners manage pools of site-code + card-number credentials for ICT sites.
 Static site (no build step) + Supabase project **CardForge Pool** (`whgdqbplitaacpxyogfn`, Sydney).
 
-## Deploy on Vercel (one-off, ~2 min)
+## Deploy on Netlify (one-off, ~2 min)
 
-1. Vercel → **Add New → Project** → import `mariocannon/Tlv`.
-2. **Root Directory:** `web` · **Framework Preset:** Other · leave Build/Output empty.
-3. Deploy. Note the URL (e.g. `https://tlv-xxxx.vercel.app`).
+1. Netlify → **Add new site → Import an existing project** → GitHub → `mariocannon/Tlv`.
+2. Settings are read from `netlify.toml` (base `web`, no build). Just press **Deploy**.
+3. Note the URL (e.g. `https://cardforge-pool.netlify.app`). Rename it under Site configuration if you like.
 4. Supabase → CardForge Pool → **Authentication → URL Configuration**:
-   - **Site URL:** your Vercel URL
+   - **Site URL:** your Netlify URL
    - **Redirect URLs:** add the same URL
    (Confirmation and password-reset emails link here.)
+
+Vercel also works (`web/vercel.json`): import the repo with Root Directory `web`, preset Other.
 
 ## First run
 
