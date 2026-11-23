@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verity: tap to prove it's real</title>
+<style>
+:root { --bg: #F5FAF8; --ink: #12201C; --muted: #4A615B; --line: #DCE8E3; --accent: #0E6B59; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0D1412; --ink: #E4ECE9; --muted: #9AABA5; --line: #26342F; --accent: #43C2A4; } }
+body { margin: 0; background: var(--bg); color: var(--ink); }
+main { max-width: 680px; margin: 0 auto; padding: 48px 20px; display: flex; flex-direction: column; gap: 22px; line-height: 1.55; }
+h1 { margin: 0; font-size: 34px; line-height: 1.15; text-wrap: balance; }
+h2 { margin: 8px 0 0; font-size: 19px; }
+p, li { color: var(--muted); font-size: 16.5px; }
+ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+a { color: var(--accent); font-weight: 600; }
+.box { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Verity: tap a product to prove it's real</h1>
+  <p>Each product carries a small NFC tag with its own secret key. Tap it with any phone and the page tells you in plain words whether it's genuine. No app needed.</p>
+  <h2>Why a copy fails</h2>
+  <ol>
+    <li>Every tap, the tag creates a fresh one-time code signed with its secret AES key.</li>
+    <li>Our server checks the signature and that the tap counter has gone up.</li>
+    <li>Reuse an old link, or copy the tag without the key, and the check fails on the first tap.</li>
+  </ol>
+  <h2>What this demo includes</h2>
+  <div class="box">
+    <p><strong>CardForge</strong> (Android): staff encode real NTAG 424 DNA tags, then quality-check them.<br>
+    <strong>Tap page</strong>: what a shopper sees after tapping.<br>
+    <strong><a href="dashboard/">Staff dashboard</a></strong>: live scans, alerts and tags.</p>
+  </div>
+  <p style="font-size:13.5px">Verity is a working name. This is an MVP for testing and demos.</p>
+</main>
+</body>
+</html>

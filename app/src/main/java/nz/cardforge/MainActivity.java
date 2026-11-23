@@ -276,6 +276,12 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         profileSummary.setTextSize(12);
         root.addView(profileSummary);
 
+        Button verity = new Button(this);
+        verity.setText("Verity product tags (NTAG 424 DNA) →");
+        verity.setAllCaps(false);
+        verity.setOnClickListener(v -> startActivity(new android.content.Intent(this, nz.cardforge.verity.VerityActivity.class)));
+        root.addView(verity);
+
         LinearLayout tabRow = new LinearLayout(this);
         tabRow.setOrientation(LinearLayout.HORIZONTAL);
         tabRow.setPadding(0, dp(12), 0, dp(8));

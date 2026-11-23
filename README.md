@@ -90,3 +90,19 @@ Under **Keys → Card type**, choose **MIFARE Classic 1K/4K** and tap **Generate
 * `desfire/KeyDiversifier.java`: AN10922 AES-128
 * `desfire/ClassicEncoder.java` + `AndroidClassic.java`: MIFARE Classic encode / verify / wipe
 * `MainActivity.java`, `ProfileStore.java`: Android UI, NFC, Keystore storage
+
+## Verity mode: NTAG 424 DNA product tags
+
+CardForge also encodes **Verity** anti-counterfeit tags. These are NXP NTAG 424 DNA stickers that shoppers tap with any phone to check a product is genuine, with no app needed. Open it from the **Verity product tags** button on the main screen.
+
+| Piece | Where |
+| --- | --- |
+| Encode / Check / Reset screen | `app/src/main/java/nz/cardforge/verity/` |
+| NTAG 424 DNA EV2 secure messaging + SUN setup | `app/src/main/java/nz/cardforge/ntag/` |
+| Server: verify + encoder edge functions, shared crypto | `supabase/functions/` |
+| Shopper tap page, staff dashboard | `docs/` (GitHub Pages) |
+| Step-by-step test and demo guide | [`docs/VERITY_MVP.md`](docs/VERITY_MVP.md) |
+
+How a tag is set up: K0 app master (per tag), K1 SUN meta-read (per brand), K2 SUN MAC (per tag), K3/K4 locked (per tag). Per-tag keys are AN10922-diversified from brand master keys held in Supabase Vault. The NDEF file holds `https://mariocannon.github.io/tlv/t/?b=<brand>&p=<encrypted UID+counter>&m=<MAC>`, which the tag rewrites on every tap.
+
+`./run-tests.sh` checks the crypto against NXP's AN12196 and AN10922 worked examples and runs encode → tap → reset on a simulated NTAG 424 DNA. With Node 22+, it also confirms a Java-encoded tap verifies with the server's TypeScript code.

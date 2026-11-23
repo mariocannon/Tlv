@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Checking your product</title>
+<script src="../config.js"></script>
+<style>
+:root {
+  --bg: #F5FAF8; --card: #FFFFFF; --ink: #12201C; --muted: #4A615B; --line: #DCE8E3;
+  --good: #11805B; --good-ink: #0B3B34; --warn: #C2410C; --warn-ink: #7C2D12; --warn-bg: #FFF6F1;
+  --accent: #0E6B59;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { min-height: 100vh; display: flex; flex-direction: column; }
+header { background: var(--card); border-bottom: 1px solid var(--line); padding: 16px; text-align: center; font-weight: 700; font-size: 17px; }
+main { flex: 1; width: 100%; max-width: 480px; margin: 0 auto; padding: 32px 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
+.icon { width: 112px; height: 112px; border-radius: 999px; display: grid; place-items: center; color: #fff; }
+h1 { margin: 0; font-size: 32px; line-height: 1.1; text-wrap: balance; }
+p { margin: 0; font-size: 17px; line-height: 1.45; color: var(--muted); }
+.card { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
+.card strong { font-size: 18px; }
+.card span { font-size: 15px; color: var(--muted); }
+.steps { display: flex; flex-direction: column; gap: 10px; }
+.step { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.4; color: var(--ink); }
+.step b { flex: 0 0 26px; height: 26px; border-radius: 999px; background: #FFEDD5; color: var(--warn-ink); display: grid; place-items: center; font-size: 14px; }
+.btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; border-radius: 14px; background: var(--ink); color: #fff; text-decoration: none; font-weight: 600; font-size: 16px; }
+footer { text-align: center; font-size: 12.5px; color: var(--muted); padding: 16px 16px 28px; }
+.spinner { width: 56px; height: 56px; border-radius: 999px; border: 5px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+body.warn { --bg: var(--warn-bg); }
+</style>
+</head>
+<body>
+<header id="brand">Checking…</header>
+<main id="main" aria-live="polite">
+  <div class="spinner" role="img" aria-label="Checking"></div>
+  <h1>Checking your product</h1>
+  <p>This takes a second.</p>
+</main>
+<footer>Protected by Verity</footer>
+<script>
+(function () {
+  "use strict";
+  var q = new URLSearchParams(location.search);
+  var main = document.getElementById("main"), brandEl = document.getElementById("brand");
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  var OK = '<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var WARN = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M12 6v8"/><path d="M12 18h.01"/></svg>';
+  var REASONS = {
+    REPLAYED: "This tag's code was already used. It's likely a copy of a real tag.",
+    FORGED: "This tag wasn't made by the brand. It may be a fake.",
+    CANCELLED_TAG: "The brand has cancelled this tag. Ask the seller where it came from.",
+    UNKNOWN_TAG: "We don't recognise this tag.",
+    BROKEN_LINK: "This link is broken or incomplete. Try tapping the tag again."
+  };
+
+  function render(r) {
+    var b = r.brand || {};
+    brandEl.textContent = b.name || "Verity";
+    if (r.verdict === "GENUINE") {
+      var prod = r.product ? '<div class="card"><strong>' + esc(r.product.name) + '</strong>' +
+        (r.product.details ? '<span>' + esc(r.product.details) + '</span>' : '') +
+        '<span>' + (r.scanCount === 1 ? "First time this item has been checked" : "Checked " + r.scanCount + " times") + '</span></div>' : "";
+      main.innerHTML = '<div class="icon" style="background:var(--good)">' + OK + '</div>' +
+        '<h1 style="color:var(--good-ink)">It\'s genuine</h1>' +
+        '<p>This product is the real thing, checked just now with ' + esc((b.name || "the brand").replace(/\.$/, "")) + '.</p>' + prod +
+        (b.story ? '<p style="font-size:15px">' + esc(b.story) + '</p>' : "") +
+        (b.linkUrl ? '<a class="btn" href="' + esc(b.linkUrl) + '">' + esc(b.linkLabel || "Learn more") + '</a>' : "");
+      document.title = "It's genuine";
+      return;
+    }
+    document.body.classList.add("warn");
+    var title = r.verdict === "BROKEN_LINK" ? "We couldn't check this" : "This may not be genuine";
+    main.innerHTML = '<div class="icon" style="background:var(--warn)">' + WARN + '</div>' +
+      '<h1 style="color:var(--warn-ink)">' + title + '</h1>' +
+      '<p>' + esc(REASONS[r.verdict] || "Something went wrong. Try tapping the tag again.") + '</p>' +
+      (r.verdict === "BROKEN_LINK" ? "" :
+      '<div class="card"><strong>What to do</strong><div class="steps">' +
+        '<div class="step"><b>1</b><span>Don\'t buy it yet, or keep your receipt if you already have.</span></div>' +
+        '<div class="step"><b>2</b><span>Tell ' + esc(b.name || "the brand") + ' where you found it.</span></div>' +
+        '<div class="step"><b>3</b><span>Buy from a listed stockist next time.</span></div>' +
+      '</div></div>');
+    document.title = title;
+  }
+
+  var tz = "";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+  var url = VERITY.supabaseUrl + "/functions/v1/verify?b=" + encodeURIComponent(q.get("b") || "") +
+    "&p=" + encodeURIComponent(q.get("p") || "") + "&m=" + encodeURIComponent(q.get("m") || "") + "&tz=" + encodeURIComponent(tz);
+  fetch(url, { headers: { apikey: VERITY.anonKey } })
+    .then(function (res) { return res.json(); })
+    .then(render)
+    .catch(function () { render({ verdict: "BROKEN_LINK" }); main.querySelector("p").textContent = "We couldn't reach the checking service. Check your connection and tap again."; });
+})();
+</script>
+</body>
+</html>
