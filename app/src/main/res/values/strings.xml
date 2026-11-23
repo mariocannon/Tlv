@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hce_service">CardForge phone credential</string>
+    <string name="hce_aids">CardForge access credential</string>
+</resources>

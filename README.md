@@ -1,4 +1,4 @@
-# CardForge: custom-key DESFire & MIFARE Classic cards for ICT readers
+# CardForge: custom-key DESFire & MIFARE Classic cards + phone credentials for ICT readers
 
 An Android app that encodes MIFARE DESFire EV1/EV2/EV3 cards with **your own AES keys** from the phone. It also prints the exact Protege Config App settings, including the **Keyslot hex TLV**, so your ICT reader (OSDP output) can read the cards.
 
@@ -69,6 +69,23 @@ Under **Keys → Card type**, choose **MIFARE Classic 1K/4K** and tap **Generate
 * **Phone support:** Android can only do MIFARE Classic if the phone has an NXP NFC chip. Many Samsung and Pixel phones can't. If the app says it can't open the card as Classic, that's the phone, not the card.
 * **Security:** Classic's Crypto1 is broken, and cards can be cloned with cheap tools in minutes. Use it for legacy sites or low-risk doors. Use DESFire anywhere security matters.
 
+## Phone credentials (NFC, experimental)
+
+The **Phone** tab turns an Android phone into a credential, using Host Card Emulation (HCE). The phone answers the reader as a DESFire card: same AID, file and read key as your cards, with its own site/card number.
+
+1. Keys must have saved DESFire keys with AV2 diversification **off** (phones present a random UID).
+2. Phone tab: set the site/card for this phone and tap **Save phone credential**. Tick **Phone credential ON**, then hold the phone (screen on, unlocked) to the reader *while the Phone tab is open*.
+3. Reader: **ICT config for phone credentials** shows the extra slots. These are Access Credential slot 8 = *ISO7816 (NFC)* with your App ID / AES keyslot / file, and Card Linkage slot 7. Your card slots stay as they are.
+4. Every tap is logged in the Phone tab (`R→P` = reader to phone). **Copy log** and send it over if the reader doesn't accept the phone.
+
+**The unknown:** Android only hands NFC traffic to an app after the reader sends an ISO `SELECT` for an AID the app registered. ICT doesn't publish the AID its readers select on phones. The app answers `F0434652474501`, `D2760000850100` and `D2760000850101` by default, and **Extra AIDs** lets you add more without a rebuild.
+* If the log stays **empty** when you tap, the reader is selecting an AID we haven't registered. The fastest way to find it is the `apduservice` XML inside ICT's Protege Mobile Android app, or ask ICT support (they offer a Mobile SDK).
+* If the log shows traffic but the door doesn't open, the reader is talking to us. The log will show which commands it expects.
+
+**AES-256 data layer** (optional checkbox): the file holds `IV(16) || AES-256-CBC(data key, IV, credential)`. This matches ICT's *AES 256 Decrypt CBC + AES IV in first block* linkage flags. The 32-byte data key is loaded with TLV `0321<key>03`.
+
+Phone credentials are read-only (the phone only knows the read key) and need the phone unlocked. Every phone with the exported profile holds the read key, so anyone with that profile could copy a credential. Treat phone credentials as convenience, not high security.
+
 ## Security notes (keys on the phone)
 
 * Keys are stored encrypted with a non-exportable Android Keystore key. Backups are disabled, and screenshots of the app are blocked.
@@ -89,4 +106,5 @@ Under **Keys → Card type**, choose **MIFARE Classic 1K/4K** and tap **Generate
 * `desfire/Credential.java`: on-card data layout
 * `desfire/KeyDiversifier.java`: AN10922 AES-128
 * `desfire/ClassicEncoder.java` + `AndroidClassic.java`: MIFARE Classic encode / verify / wipe
+* `desfire/DesfireEmulator.java` + `PhoneCredentialService.java`: phone-as-card (HCE)
 * `MainActivity.java`, `ProfileStore.java`: Android UI, NFC, Keystore storage

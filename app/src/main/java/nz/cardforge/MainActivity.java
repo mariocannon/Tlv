@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -12,6 +13,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
+import android.nfc.cardemulation.CardEmulation;
+import android.content.pm.PackageManager;
 import android.nfc.TagLostException;
 import android.nfc.tech.IsoDep;
 import android.nfc.tech.MifareClassic;
@@ -35,6 +38,8 @@ import android.widget.Toast;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,7 +56,7 @@ import nz.cardforge.desfire.Hex;
 
 public class MainActivity extends Activity implements NfcAdapter.ReaderCallback {
 
-    private enum Mode { ENCODE, VERIFY, WIPE, KEYS }
+    private enum Mode { ENCODE, VERIFY, WIPE, PHONE, KEYS }
 
     private static final int GREEN = Color.rgb(0x1B, 0x7F, 0x3A), RED = Color.rgb(0xC6, 0x28, 0x28), GREY = Color.rgb(0x55, 0x55, 0x55);
     private static final DesfireSession.Comm[] COMMS = {DesfireSession.Comm.ENC, DesfireSession.Comm.MAC, DesfireSession.Comm.PLAIN};
@@ -64,7 +69,12 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     private final AtomicBoolean busy = new AtomicBoolean(false);
 
     private LinearLayout encodePanel, verifyPanel, wipePanel, keysPanel;
-    private final Button[] tabs = new Button[4];
+    private final Button[] tabs = new Button[5];
+    private LinearLayout phonePanel;
+    private CheckBox phoneEnabled, phoneLayer;
+    private EditText phoneSiteIn, phoneCardIn, aidsIn;
+    private TextView phoneLog;
+    private boolean resumed;
     private TextView status, logView, profileSummary;
     private EditText siteIn, cardIn;
     private CheckBox autoInc, overwrite, wipeArmed;
@@ -104,6 +114,9 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
+        ApduLog.setListener(() -> runOnUiThread(() -> phoneLog.setText(ApduLog.dump())));
+        phoneLog.setText(ApduLog.dump());
         if (nfc == null) {
             setStatus("This phone has no NFC.", RED);
             return;
@@ -112,15 +125,49 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
             setStatus("NFC is off - turn it on in Settings.", RED);
             return;
         }
-        Bundle opts = new Bundle();
-        opts.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 1000);
-        nfc.enableReaderMode(this, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, opts);
+        updateNfcRole();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (nfc != null) nfc.disableReaderMode(this);
+        resumed = false;
+        ApduLog.setListener(null);
+        if (nfc != null) {
+            nfc.disableReaderMode(this);
+            CardEmulation ce = cardEmulation();
+            if (ce != null) ce.unsetPreferredService(this);
+        }
+    }
+
+    private boolean hasHce() {
+        return getPackageManager().hasSystemFeature(PackageManager.FEATURE_NFC_HOST_CARD_EMULATION);
+    }
+
+    private CardEmulation cardEmulation() {
+        if (nfc == null || !hasHce()) return null;
+        try {
+            return CardEmulation.getInstance(nfc);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private ComponentName hceComponent() { return new ComponentName(this, PhoneCredentialService.class); }
+
+    /** Reader mode (encode/verify/wipe) and card emulation (Phone tab) can't run at the same time. */
+    private void updateNfcRole() {
+        if (nfc == null || !resumed || !nfc.isEnabled()) return;
+        CardEmulation ce = cardEmulation();
+        if (mode == Mode.PHONE) {
+            nfc.disableReaderMode(this);
+            if (ce != null) ce.setPreferredService(this, hceComponent());
+        } else {
+            if (ce != null) ce.unsetPreferredService(this);
+            Bundle opts = new Bundle();
+            opts.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 1000);
+            nfc.enableReaderMode(this, this, NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, opts);
+        }
     }
 
     // ------------------------------------------------------------------ NFC
@@ -133,7 +180,7 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
             final Mode m = mode;
             final CardProfile p = profile;
             final boolean classic = p.cardType == CardProfile.CardType.CLASSIC;
-            if (m == Mode.KEYS) {
+            if (m == Mode.KEYS || m == Mode.PHONE) {
                 ui(() -> setStatus("Switch to Encode, Verify or Wipe to use a card.", GREY));
                 return;
             }
@@ -279,8 +326,8 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         LinearLayout tabRow = new LinearLayout(this);
         tabRow.setOrientation(LinearLayout.HORIZONTAL);
         tabRow.setPadding(0, dp(12), 0, dp(8));
-        String[] names = {"Encode", "Verify", "Wipe", "Keys"};
-        for (int i = 0; i < 4; i++) {
+        String[] names = {"Encode", "Verify", "Wipe", "Phone", "Keys"};
+        for (int i = 0; i < names.length; i++) {
             Button b = new Button(this);
             b.setText(names[i]);
             b.setAllCaps(false);
@@ -317,6 +364,36 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         wipeArmed = check(wipePanel, "Armed (wipe the next card tapped)", false);
 
         // Keys
+        // Phone credential (HCE)
+        phonePanel = panel(root);
+        hint(phonePanel, "Turns this phone into a DESFire credential for the ICT reader. Stay on this tab, keep the screen on and unlocked, and hold the phone to the reader. Uses the DESFire AID and read key from Keys.");
+        if (!hasHce()) hint(phonePanel, "⚠ This phone doesn't support NFC card emulation (HCE).");
+        phoneEnabled = check(phonePanel, "Phone credential ON", state.getBoolean("phoneEnabled", false));
+        phoneEnabled.setOnCheckedChangeListener((b, on) -> state.edit().putBoolean("phoneEnabled", on).apply());
+        phoneSiteIn = field(phonePanel, "Phone credential site code", InputType.TYPE_CLASS_NUMBER);
+        phoneCardIn = field(phonePanel, "Phone credential card ID", InputType.TYPE_CLASS_NUMBER);
+        phoneSiteIn.setText(String.valueOf(state.getLong("phoneSite", 1)));
+        phoneCardIn.setText(String.valueOf(state.getLong("phoneCard", 1)));
+        phoneLayer = check(phonePanel, "AES-256 data layer (ICT mobile style, experimental)", state.getBoolean("phoneDataLayer", false));
+        phoneLayer.setOnCheckedChangeListener((b, on) -> state.edit().putBoolean("phoneDataLayer", on).apply());
+        button(phonePanel, "Save phone credential", v -> savePhone());
+        button(phonePanel, "ICT config for phone credentials", v -> showPhoneConfig());
+        aidsIn = field(phonePanel, "Extra AIDs to answer (hex, comma separated, 5-16 bytes)", InputType.TYPE_CLASS_TEXT);
+        aidsIn.setText(state.getString("extraAids", ""));
+        button(phonePanel, "Apply AIDs", v -> applyAids());
+        TextView lt = new TextView(this);
+        lt.setText("Reader traffic (R→P reader to phone, P→R phone to reader)");
+        lt.setTypeface(Typeface.DEFAULT_BOLD);
+        lt.setPadding(0, dp(12), 0, dp(4));
+        phonePanel.addView(lt);
+        button(phonePanel, "Copy log", v -> copyPlain("Reader log", ApduLog.dump()));
+        button(phonePanel, "Clear log", v -> ApduLog.clear());
+        phoneLog = new TextView(this);
+        phoneLog.setTypeface(Typeface.MONOSPACE);
+        phoneLog.setTextSize(11);
+        phoneLog.setTextIsSelectable(true);
+        phonePanel.addView(phoneLog);
+
         keysPanel = panel(root);
         hint(keysPanel, "Site settings. These must match the ICT reader config. Changing keys or AID after cards are issued makes those cards unreadable.");
         typeSpin = spinner(keysPanel, "Card type", new String[] {"MIFARE DESFire EV1/EV2/EV3 (secure)", "MIFARE Classic 1K/4K (legacy)"});
@@ -450,14 +527,90 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
         verifyPanel.setVisibility(m == Mode.VERIFY ? View.VISIBLE : View.GONE);
         wipePanel.setVisibility(m == Mode.WIPE ? View.VISIBLE : View.GONE);
         keysPanel.setVisibility(m == Mode.KEYS ? View.VISIBLE : View.GONE);
+        phonePanel.setVisibility(m == Mode.PHONE ? View.VISIBLE : View.GONE);
         for (int i = 0; i < tabs.length; i++) tabs[i].setEnabled(Mode.values()[i] != m);
         if (m == Mode.WIPE) wipeArmed.setChecked(false);
         switch (m) {
             case ENCODE: setStatus("Ready to encode - tap a card", GREY); break;
             case VERIFY: setStatus("Ready to verify - tap a card", GREY); break;
             case WIPE: setStatus("Tick Armed, then tap a card", GREY); break;
+            case PHONE:
+                setStatus(state.getBoolean("phoneEnabled", false) ? "Phone is acting as a card - hold it to the reader" : "Tick \"Phone credential ON\" to present this phone", GREY);
+                break;
             default: setStatus("Edit site settings, then Save", GREY);
         }
+        updateNfcRole();
+    }
+
+    private void savePhone() {
+        try {
+            long site = Long.parseLong(phoneSiteIn.getText().toString().trim());
+            long card = Long.parseLong(phoneCardIn.getText().toString().trim());
+            new Credential(profile.format, site, card); // range check for the current format
+            profile.validateForPhone();
+            state.edit().putLong("phoneSite", site).putLong("phoneCard", card).apply();
+            setStatus("Phone credential saved: site " + site + " / card " + card, GREEN);
+        } catch (NumberFormatException e) {
+            setStatus("Enter a numeric site code and card ID.", RED);
+        } catch (RuntimeException e) {
+            setStatus(e.getMessage(), RED);
+        }
+    }
+
+    private void applyAids() {
+        CardEmulation ce = cardEmulation();
+        if (ce == null) {
+            setStatus("This phone doesn't support NFC card emulation.", RED);
+            return;
+        }
+        List<String> aids = new ArrayList<>();
+        for (String a : PhoneCredentialService.DEFAULT_AIDS) aids.add(a);
+        String raw = aidsIn.getText().toString().trim();
+        try {
+            for (String part : raw.split("[,\\s]+")) {
+                if (part.isEmpty()) continue;
+                String a = part.toUpperCase(java.util.Locale.US);
+                byte[] b = Hex.decode(a);
+                if (b.length < 5 || b.length > 16) throw new IllegalArgumentException("AID " + a + " must be 5-16 bytes");
+                if (!aids.contains(a)) aids.add(a);
+            }
+            boolean ok = ce.registerAidsForService(hceComponent(), CardEmulation.CATEGORY_OTHER, aids);
+            state.edit().putString("extraAids", raw).apply();
+            setStatus(ok ? "Answering " + aids.size() + " AIDs" : "Android rejected the AID list", ok ? GREEN : RED);
+        } catch (RuntimeException e) {
+            setStatus(e.getMessage(), RED);
+        }
+    }
+
+    private void showPhoneConfig() {
+        CardProfile p = profile;
+        try {
+            p.validateForPhone();
+        } catch (RuntimeException e) {
+            setStatus(e.getMessage(), RED);
+            return;
+        }
+        boolean layer = phoneLayer.isChecked();
+        TextView t = new TextView(this);
+        t.setTypeface(Typeface.MONOSPACE);
+        t.setTextSize(12);
+        t.setTextIsSelectable(true);
+        t.setPadding(dp(16), dp(8), dp(16), dp(8));
+        t.setText(p.ictMobileConfig(layer, true));
+        ScrollView sv = new ScrollView(this);
+        sv.addView(t);
+        new AlertDialog.Builder(this)
+                .setTitle("ICT config - phone credential")
+                .setView(sv)
+                .setPositiveButton("Copy all", (d, w) -> copy("Phone reader config", p.ictMobileConfig(layer, true)))
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void copyPlain(String label, String text) {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(ClipData.newPlainText(label, text));
+        Toast.makeText(this, label + " copied", Toast.LENGTH_SHORT).show();
     }
 
     private void setStatus(String text, int color) {
@@ -531,6 +684,8 @@ public class MainActivity extends Activity implements NfcAdapter.ReaderCallback 
             p.classicKeyA = Hex.decode(classicAIn.getText().toString().trim());
             p.classicKeyB = Hex.decode(classicBIn.getText().toString().trim());
             CardProfile old = profile;
+            p.mobileDataKey = old.mobileDataKey.clone();
+            if (CardProfile.isZeroKey(p.mobileDataKey)) new SecureRandom().nextBytes(p.mobileDataKey);
             p.ictCredentialSlot = old.ictCredentialSlot;
             p.ictFormatSlot = old.ictFormatSlot;
             p.ictLinkageSlot = old.ictLinkageSlot;

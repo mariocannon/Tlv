@@ -91,6 +91,7 @@ final class ProfileStore {
         o.put("classicSector", p.classicSector);
         o.put("classicKeyA", Hex.encode(p.classicKeyA));
         o.put("classicKeyB", Hex.encode(p.classicKeyB));
+        o.put("mobileDataKey", Hex.encode(p.mobileDataKey));
         return o.toString(2);
     }
 
@@ -122,6 +123,11 @@ final class ProfileStore {
             p.classicKeyB = Hex.decode(o.getString("classicKeyB"));
         } else {
             p.generateClassicKeys(new java.security.SecureRandom()); // profiles saved before Classic support
+        }
+        if (o.has("mobileDataKey")) {
+            p.mobileDataKey = Hex.decode(o.getString("mobileDataKey"));
+        } else {
+            new java.security.SecureRandom().nextBytes(p.mobileDataKey); // profiles saved before phone credentials
         }
         p.validate();
         return p;

@@ -45,6 +45,13 @@ public final class CardProfile {
     public byte[] classicKeyA = new byte[6]; // read key -> reader keyslot
     public byte[] classicKeyB = new byte[6]; // write key -> phone only
 
+    // ---- Phone (HCE) credential
+    /** Optional AES-256 data-layer key (ICT card linkage "AES 256 Decrypt CBC" + "IV in first block"). */
+    public byte[] mobileDataKey = new byte[32];
+    public int ictDataKeyslot = 3;
+    public int ictMobileCredentialSlot = 8;
+    public int ictMobileLinkageSlot = 7;
+
     public static CardProfile generate(SecureRandom rnd) {
         CardProfile p = new CardProfile();
         rnd.nextBytes(p.piccMasterKey);
@@ -52,6 +59,7 @@ public final class CardProfile {
         rnd.nextBytes(p.readKey);
         rnd.nextBytes(p.writeKey);
         p.generateClassicKeys(rnd);
+        rnd.nextBytes(p.mobileDataKey);
         return p;
     }
 
@@ -94,6 +102,46 @@ public final class CardProfile {
         if (isZero(appMasterKey) || isZero(readKey) || isZero(writeKey))
             throw new IllegalArgumentException("Keys are still all-zero. Generate keys first.");
     }
+
+    /** Checks the DESFire-side settings the phone credential reuses (AID, file, read key). */
+    public void validateForPhone() {
+        if (isZero(readKey)) throw new IllegalArgumentException("Generate and save DESFire keys first (the phone credential uses the DESFire read key)");
+        if (aid <= 0 || aid >= 0xFFFFFF) throw new IllegalArgumentException("Invalid AID");
+        if (diversify) throw new IllegalArgumentException("Turn off AV2 diversification: phones present a random UID");
+    }
+
+    public String ictMobileConfig(boolean dataLayer, boolean includeKey) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("ICT config - phone (NFC) credential\n");
+        sb.append("===================================\n");
+        sb.append("Adds to your DESFire card config; card slots stay as they are.\n\n");
+        sb.append("1) Hex TLV - read key (same as DESFire cards)\n");
+        sb.append("   ").append(includeKey ? "0311" + Hex.encode(readKey) : "0311<read key hidden>").append(String.format("%02X%n", ictKeyslot));
+        if (dataLayer) {
+            sb.append("   Hex TLV - AES-256 data key\n");
+            sb.append("   ").append(includeKey ? "0321" + Hex.encode(mobileDataKey) : "0321<data key hidden>").append(String.format("%02X%n", ictDataKeyslot));
+        }
+        sb.append("\n2) Access Credentials\n");
+        sb.append(String.format("   Slot             : %d%n", ictMobileCredentialSlot));
+        sb.append("   Credential Type  : ISO7816 (NFC)\n");
+        sb.append(String.format("   App ID           : %06X%n", aid));
+        sb.append(String.format("   AES Keyslot      : %d%n", ictKeyslot));
+        sb.append(String.format("   File Number      : %d%n%n", fileNo));
+        sb.append("3) Custom Card Format Slots\n");
+        sb.append(String.format("   Slot %d: %s = %s (already set for cards)%n", ictFormatSlot, ictFormatHex(), format.ictFormatString()));
+        if (dataLayer) sb.append("   If the reader counts the IV block, try a format that skips 128 bits first.\n");
+        sb.append("\n4) Card Linkages\n");
+        sb.append(String.format("   Linkage Slot     : %d%n", ictMobileLinkageSlot));
+        sb.append(dataLayer ? "   Flags            : AES 256 Decrypt CBC + AES IV in first block\n" : "   Flags            : none\n");
+        sb.append(String.format("   Keyslot          : %d%n", dataLayer ? ictDataKeyslot : ictKeyslot));
+        sb.append(String.format("   Access Cred Slot : %d%n", ictMobileCredentialSlot));
+        sb.append(String.format("   Format Slot      : %d%n%n", ictFormatSlot));
+        sb.append("Experimental: ICT doesn't publish the AID its readers SELECT on phones.\n");
+        sb.append("Use the Phone tab log on the first tap to see what the reader sends.\n");
+        return sb.toString();
+    }
+
+    public static boolean isZeroKey(byte[] k) { return isZero(k); }
 
     static boolean isZero(byte[] k) {
         for (byte b : k) if (b != 0) return false;

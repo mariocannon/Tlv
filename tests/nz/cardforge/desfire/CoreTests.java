@@ -71,6 +71,8 @@ public final class CoreTests {
         }
         System.out.println("End-to-end: MIFARE Classic");
         classicEndToEnd(rnd);
+        System.out.println("Phone (HCE) emulator");
+        phoneEmulator(rnd);
         System.out.println("\nAll " + passed + " checks passed.");
     }
 
@@ -157,5 +159,48 @@ public final class CoreTests {
         enc.encode(new Credential(Credential.Format.W34, 5, 5), false);
         expectError(() -> new ClassicEncoder(card, other, card.uid, m -> {}).encode(new Credential(Credential.Format.W34, 1, 1), true),
                 "Classic: foreign keys -> refuses (card belongs to another system)");
+    }
+
+    static void phoneEmulator(SecureRandom rnd) throws Exception {
+        for (DesfireSession.Comm comm : DesfireSession.Comm.values()) {
+            CardProfile p = CardProfile.generate(rnd);
+            p.comm = comm;
+            p.validateForPhone();
+            Credential cred = new Credential(Credential.Format.W34, 77, 1001);
+            byte[] uid = Hex.decode("08A1B2C3D4E5F6");
+            DesfireEmulator emu = new DesfireEmulator(p, DesfireEmulator.mobileFile(p, cred, false, rnd), uid);
+            eqHex(emu.process(Hex.decode("00A4040007F0434652474501")), "9000", "Phone " + comm + ": ISO SELECT routes");
+            DesfireSession reader = new DesfireSession(emu::process);
+            byte[] v = reader.getVersion();
+            check(v[0] == 0x04 && v[1] == 0x01, "Phone " + comm + ": GetVersion looks like DESFire");
+            check(reader.getApplicationIds().contains(p.aid), "Phone " + comm + ": app listed");
+            // exactly what CardEncoder.verify / the ICT reader does
+            Credential got = new CardEncoder(reader, p, uid, m -> {}).verify();
+            check(got.site == 77 && got.card == 1001, "Phone " + comm + ": reader reads site 77 / card 1001");
+            expectError(() -> {
+                DesfireSession r = new DesfireSession(emu::process);
+                r.selectApplication(p.aid);
+                r.authenticateAes(1, new byte[16]);
+            }, "Phone " + comm + ": wrong key rejected");
+            expectError(() -> {
+                DesfireSession r = new DesfireSession(emu::process);
+                r.selectApplication(p.aid);
+                r.authenticateAes(1, p.readKey);
+                r.writeData(1, 0, new byte[4], comm);
+            }, "Phone " + comm + ": phone credential is read-only");
+        }
+        // Native (unwrapped) framing
+        CardProfile p = CardProfile.generate(rnd);
+        DesfireEmulator emu = new DesfireEmulator(p, DesfireEmulator.mobileFile(p, new Credential(Credential.Format.W26, 1, 2), false, rnd), new byte[7]);
+        check(emu.process(new byte[] {0x60})[0] == (byte) 0xAF, "Phone: native GetVersion frame answered");
+        // AES-256 data layer: IV || CBC(dataKey, IV, credential)
+        Credential cred = new Credential(Credential.Format.W34, 5, 6);
+        byte[] f = DesfireEmulator.mobileFile(p, cred, true, rnd);
+        javax.crypto.Cipher ci = javax.crypto.Cipher.getInstance("AES/CBC/NoPadding");
+        ci.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(p.mobileDataKey, "AES"),
+                new javax.crypto.spec.IvParameterSpec(Arrays.copyOf(f, 16)));
+        byte[] plain = ci.doFinal(Arrays.copyOfRange(f, 16, 32));
+        check(Credential.parse(plain).card == 6, "Phone: AES-256 CBC data layer decrypts with IV in first block");
+        check(p.ictMobileConfig(true, true).contains("0321" + Hex.encode(p.mobileDataKey) + "03"), "Phone: ICT config has 32-byte data key TLV");
     }
 }
