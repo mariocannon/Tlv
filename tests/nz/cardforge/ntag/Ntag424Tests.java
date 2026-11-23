@@ -23,7 +23,7 @@ public final class Ntag424Tests {
         check(ok, name);
     }
 
-    static final String TEMPLATE = "https://mariocannon.github.io/tlv/t/?b=demo&p=00000000000000000000000000000000&m=0000000000000000";
+    static final String TEMPLATE = "https://mariocannon.github.io/Tlv/t/?b=demo&p=00000000000000000000000000000000&m=0000000000000000";
 
     public static void main(String[] args) throws Exception {
         byte[] zero = new byte[16];
@@ -61,7 +61,7 @@ public final class Ntag424Tests {
         check(!enc.isFactory(), "encoded tag no longer accepts the factory key");
 
         String url1 = enc.readUrl(), url2 = enc.readUrl();
-        check(url1.startsWith("https://mariocannon.github.io/tlv/t/?b=demo&p="), "tap URL keeps the template: " + url1);
+        check(url1.startsWith("https://mariocannon.github.io/Tlv/t/?b=demo&p="), "tap URL keeps the template: " + url1);
         String[] p1 = SunVerifier.params(url1), p2 = SunVerifier.params(url2);
         SunVerifier.Result r1 = SunVerifier.verify(meta, keys.k[2], p1[0], p1[1]);
         SunVerifier.Result r2 = SunVerifier.verify(meta, keys.k[2], p2[0], p2[1]);

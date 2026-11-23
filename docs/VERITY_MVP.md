@@ -4,9 +4,9 @@ This is the working MVP of Verity. Staff encode NXP **NTAG 424 DNA** tags with C
 
 | Part | Link |
 | --- | --- |
-| Staff dashboard | https://mariocannon.github.io/tlv/dashboard/ |
-| Shopper tap page (opened by the tag) | https://mariocannon.github.io/tlv/t/ |
-| About page | https://mariocannon.github.io/tlv/ |
+| Staff dashboard | https://mariocannon.github.io/Tlv/dashboard/ |
+| Shopper tap page (opened by the tag) | https://mariocannon.github.io/Tlv/t/ |
+| About page | https://mariocannon.github.io/Tlv/ |
 | Server | Supabase project **Verity** (`emcuwvuouggvdwnowlwr`, Sydney) |
 | App | CardForge APK from GitHub Actions, branch `verity` |
 
@@ -95,7 +95,7 @@ In CardForge, **Check** shows the server's reasoning for any tag: verdict, count
 **MVP shortcuts to fix before paying customers:**
 - Keys go to the phone over HTTPS for one tag at a time. Production should wrap them to a per-session device key, or encode with a hardware SAM.
 - Brand keys sit in Supabase Vault, not a hardware security module.
-- The tap page is hosted on GitHub Pages under `mariocannon.github.io/tlv`. Move it to your own short domain before real launches; tags encoded now keep this URL forever, so use test tags only.
+- The tap page is hosted on GitHub Pages under `mariocannon.github.io/Tlv`. Move it to your own short domain before real launches; tags encoded now keep this URL forever, so use test tags only.
 - City comes from the phone's time zone, not IP geolocation.
 - The dashboard is staff-only. There are no brand logins or billing yet.
 - The `selftest` brand and its one tag exist only for automated server tests and are hidden from the app.

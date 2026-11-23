@@ -10,7 +10,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { tagKeys, type BrandKeys } from "../_shared/ntag.ts";
 
-const TAP_BASE = Deno.env.get("VERITY_TAP_BASE") ?? "https://mariocannon.github.io/tlv/t/";
+const TAP_BASE = Deno.env.get("VERITY_TAP_BASE") ?? "https://mariocannon.github.io/Tlv/t/";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

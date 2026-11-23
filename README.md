@@ -103,6 +103,6 @@ CardForge also encodes **Verity** anti-counterfeit tags. These are NXP NTAG 424 
 | Shopper tap page, staff dashboard | `docs/` (GitHub Pages) |
 | Step-by-step test and demo guide | [`docs/VERITY_MVP.md`](docs/VERITY_MVP.md) |
 
-How a tag is set up: K0 app master (per tag), K1 SUN meta-read (per brand), K2 SUN MAC (per tag), K3/K4 locked (per tag). Per-tag keys are AN10922-diversified from brand master keys held in Supabase Vault. The NDEF file holds `https://mariocannon.github.io/tlv/t/?b=<brand>&p=<encrypted UID+counter>&m=<MAC>`, which the tag rewrites on every tap.
+How a tag is set up: K0 app master (per tag), K1 SUN meta-read (per brand), K2 SUN MAC (per tag), K3/K4 locked (per tag). Per-tag keys are AN10922-diversified from brand master keys held in Supabase Vault. The NDEF file holds `https://mariocannon.github.io/Tlv/t/?b=<brand>&p=<encrypted UID+counter>&m=<MAC>`, which the tag rewrites on every tap.
 
 `./run-tests.sh` checks the crypto against NXP's AN12196 and AN10922 worked examples and runs encode → tap → reset on a simulated NTAG 424 DNA. With Node 22+, it also confirms a Java-encoded tap verifies with the server's TypeScript code.

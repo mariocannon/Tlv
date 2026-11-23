@@ -260,7 +260,7 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
         emailIn = field(signInPanel, "Verity staff email", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         passwordIn = field(signInPanel, "Password", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         button(signInPanel, "Sign in", v -> signIn());
-        hint(signInPanel, "Create your account on the dashboard first: mariocannon.github.io/tlv/dashboard");
+        hint(signInPanel, "Create your account on the dashboard first: mariocannon.github.io/Tlv/dashboard");
 
         // Signed in
         workPanel = panel(root);
@@ -278,7 +278,7 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
         workPanel.addView(btns);
         Button rb = new Button(this); rb.setText("Refresh batches"); rb.setAllCaps(false); rb.setOnClickListener(v -> loadBatches());
         Button db = new Button(this); db.setText("Open dashboard"); db.setAllCaps(false);
-        db.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://mariocannon.github.io/tlv/dashboard/"))));
+        db.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://mariocannon.github.io/Tlv/dashboard/"))));
         Button ob = new Button(this); ob.setText("Sign out"); ob.setAllCaps(false); ob.setOnClickListener(v -> { api.signOut(); refreshSignIn(); });
         btns.addView(rb, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         btns.addView(db, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
