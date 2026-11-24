@@ -7,6 +7,7 @@
 <title>Verity Dashboard</title>
 <script src="../config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 /* Staff dashboard: live scans, alerts and tags over real NTAG 424 DNA taps. Summary first, detail below. */
 :root {
@@ -52,6 +53,13 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
 #login { max-width: 420px; margin: 10vh auto; }
 .err { color: var(--bad); font-size: 14px; min-height: 1em; }
 .live { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.chip { font-size: 11px; font-weight: 600; border-radius: 6px; padding: 1px 6px; margin-left: 6px; background: var(--accent-soft); color: var(--accent); }
+.chip.test { background: var(--warn-soft); color: var(--warn); }
+.taprow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.qr { background: #fff; padding: 8px; border-radius: 10px; line-height: 0; }
+.qr svg { width: 168px; height: 168px; }
+.linkbox { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.linkbox code { font-family: var(--mono); font-size: 12px; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 .live i { width: 8px; height: 8px; border-radius: 999px; background: var(--good); display: inline-block; }
 </style>
 </head>
@@ -78,6 +86,16 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
   <div class="card"><h2>Latest scans</h2><div class="tablewrap"><table><thead><tr><th>When</th><th>Result</th><th>Brand</th><th>Product</th><th>Tag</th><th>Counter</th><th>Where</th><th>Source</th></tr></thead><tbody id="scans"></tbody></table></div></div>
   <div class="card"><h2>Open alerts</h2><div class="tablewrap"><table><thead><tr><th>Severity</th><th>What happened</th><th>When</th><th></th></tr></thead><tbody id="alerts"></tbody></table></div></div>
   <div class="card"><h2>Tags</h2><p class="muted">Tags appear here once CardForge encodes them. Counter is the highest tap accepted so far.</p><div class="tablewrap"><table><thead><tr><th>Tag UID</th><th>Brand</th><th>Batch</th><th>Status</th><th>Counter</th><th>Scans</th><th>Last scan</th><th></th></tr></thead><tbody id="tags"></tbody></table></div></div>
+  <div class="card" id="testCard"><h2>Test tags (no hardware)</h2>
+    <p class="muted">Pretend tags for trying the whole flow before real NTAG 424 tags arrive. Each "Tap" makes a fresh signed link, exactly like a real tag would. Scan the QR with your phone or open it. "Reuse last link" opens an old link again, to see a copied-link alert.</p>
+    <form id="fTest"><label>Batch<select id="tBatch"></select></label><button class="btn primary" type="submit">Create test tag</button></form>
+    <div class="tablewrap"><table><thead><tr><th>Test tag</th><th>Brand</th><th>Batch</th><th>Taps made</th><th>Accepted</th><th></th></tr></thead><tbody id="vtags"></tbody></table></div>
+    <div class="taprow" id="tapOut" hidden>
+      <div class="qr" id="tapQr" aria-label="QR code of the tap link"></div>
+      <div class="linkbox"><b id="tapTitle"></b><code id="tapUrl"></code>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn primary" id="tapOpen" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Open as shopper</a><button class="btn" id="tapCopy" type="button">Copy link</button></div></div>
+    </div>
+  </div>
   <div class="row">
     <div class="card"><h2>Add a brand</h2>
       <form id="fBrand">
@@ -116,12 +134,13 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
     var r = await Promise.all([
       sb.from("scans").select("created_at, verdict, uid, ctr, place, source, brands(name), products(name)").order("created_at", { ascending: false }).limit(25),
       sb.from("alerts").select("id, severity, message, created_at").eq("status", "open").order("created_at", { ascending: false }).limit(25),
-      sb.from("tags").select("id, uid, status, last_ctr, scan_count, last_scan_at, brands(name), batches(code)").order("encoded_at", { ascending: false }).limit(100),
+      sb.from("tags").select("id, uid, status, chip, is_virtual, virtual_ctr, last_ctr, scan_count, last_scan_at, brands(name), batches(code)").order("encoded_at", { ascending: false }).limit(100),
       sb.from("scans").select("verdict", { count: "exact", head: false }).eq("source", "shopper"),
-      sb.from("brands").select("id, name, slug").order("created_at")
+      sb.from("brands").select("id, name, slug").order("created_at"),
+      sb.from("batches").select("id, code, brands(name, slug), products(name)").order("created_at", { ascending: false })
     ]);
     for (var i = 0; i < r.length; i++) if (r[i].error) return fail(r[i].error);
-    var scans = r[0].data, alerts = r[1].data, tags = r[2].data, all = r[3].data, brands = r[4].data;
+    var scans = r[0].data, alerts = r[1].data, tags = r[2].data, all = r[3].data, brands = r[4].data, batches = r[5].data.filter(function (b) { return !b.brands || b.brands.slug !== "selftest"; });
     var genuine = all.filter(function (s) { return s.verdict === "GENUINE"; }).length;
     $("kpis").innerHTML =
       '<div class="kpi"><span class="muted">Shopper scans</span><b>' + all.length + '</b></div>' +
@@ -137,15 +156,55 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
     }).join("") : '<tr><td colspan="4" class="muted">All clear.</td></tr>';
     $("tags").innerHTML = tags.length ? tags.map(function (t) {
       var on = t.status === "active";
-      return '<tr><td class="mono">' + t.uid + '</td><td>' + esc(t.brands && t.brands.name) + '</td><td class="mono">' + esc(t.batches && t.batches.code) + '</td><td><span class="pill ' + t.status + '">' + t.status + '</span></td><td class="mono">' + (t.last_ctr < 0 ? "—" : t.last_ctr) +
+      var chip = t.chip === "virtual" ? '<span class="chip test">virtual test</span>' : t.chip === "ntag21x" ? '<span class="chip test">NTAG21x test</span>' : '<span class="chip">424 DNA</span>';
+      return '<tr><td class="mono">' + t.uid + chip + '</td><td>' + esc(t.brands && t.brands.name) + '</td><td class="mono">' + esc(t.batches && t.batches.code) + '</td><td><span class="pill ' + t.status + '">' + t.status + '</span></td><td class="mono">' + (t.last_ctr < 0 ? "—" : t.last_ctr) +
         '</td><td>' + t.scan_count + '</td><td>' + when(t.last_scan_at) + '</td><td>' + (t.status === "reset" ? "" : '<button class="btn" data-tag="' + t.id + '" data-to="' + (on ? "cancelled" : "active") + '" type="button">' + (on ? "Cancel" : "Restore") + '</button>') + '</td></tr>';
     }).join("") : '<tr><td colspan="8" class="muted">No tags yet.</td></tr>';
+    var vt = tags.filter(function (t) { return t.is_virtual; });
+    $("vtags").innerHTML = vt.length ? vt.map(function (t) {
+      return '<tr><td class="mono">' + t.uid + '</td><td>' + esc(t.brands && t.brands.name) + '</td><td class="mono">' + esc(t.batches && t.batches.code) + '</td><td class="mono">' + t.virtual_ctr + '</td><td class="mono">' + (t.last_ctr < 0 ? "—" : t.last_ctr) +
+        '</td><td style="white-space:nowrap"><button class="btn primary" data-vtap="' + t.id + '" type="button">Tap</button> <button class="btn" data-vold="' + t.id + '" type="button"' + (t.virtual_ctr ? "" : " disabled") + '>Reuse last link</button></td></tr>';
+    }).join("") : '<tr><td colspan="6" class="muted">No test tags yet. Pick a batch and create one.</td></tr>';
+    var curB = $("tBatch").value;
+    $("tBatch").innerHTML = batches.length ? batches.map(function (b) { return '<option value="' + b.id + '">' + esc(b.code) + ' · ' + esc(b.products ? b.products.name : "") + ' (' + esc(b.brands ? b.brands.name : "") + ')</option>'; }).join("") : '<option value="">Add a batch first</option>';
+    if (curB) $("tBatch").value = curB;
     var cur = $("pBrand").value;
     $("pBrand").innerHTML = brands.filter(function (b) { return b.slug !== "selftest"; }).map(function (b) { return '<option value="' + b.id + '">' + esc(b.name) + '</option>'; }).join("");
     if (cur) $("pBrand").value = cur;
   }
 
+  function showTap(url, title) {
+    var q = qrcode(0, "M"); q.addData(url); q.make();
+    $("tapQr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    $("tapTitle").textContent = title; $("tapUrl").textContent = url; $("tapOpen").href = url;
+    $("tapOut").hidden = false;
+  }
+  async function encoder(body) {
+    var r = await sb.functions.invoke("encoder", { body: body });
+    if (r.error) {
+      var msg = r.error.message;
+      try { var j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch (_) {}
+      throw new Error(msg);
+    }
+    return r.data;
+  }
+  $("fTest").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!$("tBatch").value) return fail("Add a product and batch first.");
+    try { await encoder({ action: "test_create", batch_id: $("tBatch").value }); $("appErr").textContent = ""; load(); } catch (x) { fail(x); }
+  });
+  $("tapCopy").addEventListener("click", function () { navigator.clipboard && navigator.clipboard.writeText($("tapUrl").textContent); });
   document.addEventListener("click", async function (e) {
+    var v = e.target.closest("button[data-vtap],button[data-vold]");
+    if (v) {
+      v.disabled = true;
+      try {
+        if (v.dataset.vtap) { var t = await encoder({ action: "test_tap", tag_id: v.dataset.vtap }); showTap(t.url, "Tap #" + t.counter + " — fresh link (should show Genuine once)"); }
+        else { var o = await encoder({ action: "test_old_link", tag_id: v.dataset.vold }); showTap(o.url, "Last link again — if it was already opened, this shows Copied link"); }
+        $("appErr").textContent = "";
+      } catch (x) { fail(x); }
+      v.disabled = false; load(); return;
+    }
     var b = e.target.closest("button[data-resolve],button[data-tag]");
     if (!b) return;
     var res = b.dataset.resolve

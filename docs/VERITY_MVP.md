@@ -66,6 +66,12 @@ In CardForge, **Check** shows the server's reasoning for any tag: verdict, count
 
 **Reset** tab → tick **Armed** → tap the tag. It goes back to factory keys and can be encoded again, into any batch.
 
+### Before your NTAG 424 DNA tags arrive
+
+**Virtual test tags (no hardware).** Dashboard → **Test tags (no hardware)** → pick a batch → **Create test tag**. Each **Tap** makes a fresh signed link, built with that tag's real keys exactly as a chip would. Scan the QR with your phone (or **Open as shopper**) → Genuine. Press **Reuse last link** and open it again → Copied link, plus an alert on the dashboard.
+
+**NTAG213 / 215 / 216 stickers.** In CardForge → Verity → **Encode**, tap a cheap NTAG21x sticker. It's registered as a *test tag*: the app writes `…/t/?b=<brand>&u=<UID>x<counter>` and turns on the chip's UID + counter mirror, so every phone tap sends a higher counter. Copied links are caught, but there's **no signature**, so anyone could type a fake link. The shopper page shows a "Test tag" note and the dashboard marks these tags. Check and Reset work the same way. Never use these on real products.
+
 ## 8. A 3-minute demo for someone else
 
 1. Hand them the tagged product and say: "Tap it with your phone." They see **It's genuine**.

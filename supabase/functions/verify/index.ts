@@ -82,6 +82,47 @@ Deno.serve(async (req) => {
     await db.from("alerts").insert({ brand_id: brand.id, tag_id: tagId ?? null, scan_id: scanId ?? null, rule, severity, message });
   };
 
+  async function testTag21x(mirror: string) {
+    const mm = /^([0-9A-Fa-f]{14})x([0-9A-Fa-f]{6})$/.exec(mirror);
+    if (!mm) {
+      await record("BROKEN_LINK");
+      return json({ verdict: "BROKEN_LINK", brand: brandOut, reason: "The link is incomplete." });
+    }
+    const tuid = mm[1].toUpperCase(), tctr = parseInt(mm[2], 16);
+    const { data: t } = await db.from("tags")
+      .select("id, status, chip, last_ctr, scan_count, batches(product_id, products(name, details))")
+      .eq("brand_id", brand.id).eq("uid", tuid).maybeSingle();
+    // deno-lint-ignore no-explicit-any
+    const tb = (t as any)?.batches ?? null;
+    const tp = tb?.products ?? null, tpid = tb?.product_id ?? null;
+    const ttech = (extra: Record<string, unknown>) => (qc ? { tech: { uid: tuid, ctr: tctr, lastCtr: t?.last_ctr ?? null, chip: t?.chip ?? null, ...extra } } : {});
+    if (!t || t.chip !== "ntag21x") {
+      const id = await record(t ? "FORGED" : "UNKNOWN_TAG", { uid: tuid, ctr: tctr, tag_id: t?.id ?? null });
+      await alert(t ? "forgery" : "unknown", t ? "high" : "medium",
+        t ? `Tag ${tuid} is a secure tag but sent an unsigned test link.` : `Test tag ${tuid} was never registered.`, id, t?.id);
+      return json({ verdict: t ? "FORGED" : "UNKNOWN_TAG", brand: brandOut, ...ttech({ reason: t ? "Secure tags never send unsigned links." : "Not registered." }) });
+    }
+    if (t.status !== "active") {
+      const id = await record("CANCELLED_TAG", { uid: tuid, ctr: tctr, tag_id: t.id, product_id: tpid });
+      await alert("cancelled", "medium", `Cancelled test tag ${tuid} was scanned.`, id, t.id);
+      return json({ verdict: "CANCELLED_TAG", brand: brandOut, product: tp, testTag: true, ...ttech({ reason: `Tag status is ${t.status}.` }) });
+    }
+    const { data: ok } = await db.rpc("accept_counter", { p_tag_id: t.id, p_ctr: tctr, p_count: !qc });
+    if (!ok) {
+      const id = await record("REPLAYED", { uid: tuid, ctr: tctr, tag_id: t.id, product_id: tpid });
+      await alert("replay", "high", `An old link for test tag ${tuid} was opened again (counter ${tctr}, last accepted ${t.last_ctr}).`, id, t.id);
+      return json({ verdict: "REPLAYED", brand: brandOut, product: tp, testTag: true, ...ttech({ reason: `Counter ${tctr} is not higher than the last accepted ${t.last_ctr}.` }) });
+    }
+    await record("GENUINE", { uid: tuid, ctr: tctr, tag_id: t.id, product_id: tpid });
+    return json({ verdict: "GENUINE", brand: brandOut, product: tp, scanCount: t.scan_count + (qc ? 0 : 1), testTag: true,
+      ...ttech({ reason: "TEST TAG: counter moved forward. No signature, so this is not proof of authenticity." }) });
+  }
+
+  // NTAG213/215/216 TEST tags: the tag mirrors "<UID>x<counter>" into u=. No signature, so this only
+  // proves the counter went up. Only tags registered as chip 'ntag21x' may use this path.
+  const u = q.get("u") ?? "";
+  if (u && !p) return await testTag21x(u);
+
   if (!sun.ok && sun.reason === "format") {
     await record("BROKEN_LINK");
     return json({ verdict: "BROKEN_LINK", brand: brandOut, reason: "The link is incomplete." });
@@ -94,14 +135,14 @@ Deno.serve(async (req) => {
 
   const uid = sun.uid!;
   const { data: tag } = await db.from("tags")
-    .select("id, status, last_ctr, scan_count, batches(product_id, products(name, details))")
+    .select("id, status, chip, last_ctr, scan_count, batches(product_id, products(name, details))")
     .eq("brand_id", brand.id).eq("uid", uid).maybeSingle();
 
   // deno-lint-ignore no-explicit-any
   const batch = (tag as any)?.batches ?? null;
   const product = batch?.products ?? null;
   const productId = batch?.product_id ?? null;
-  const tech = (extra: Record<string, unknown>) => (qc ? { tech: { uid, ctr: sun.ctr, lastCtr: tag?.last_ctr ?? null, ...extra } } : {});
+  const tech = (extra: Record<string, unknown>) => ({ ...(tag?.chip === "virtual" ? { testTag: true } : {}), ...(qc ? { tech: { uid, ctr: sun.ctr, lastCtr: tag?.last_ctr ?? null, ...extra } } : {}) });
 
   if (!tag) {
     const id = await record("UNKNOWN_TAG", { uid, ctr: sun.ctr });

@@ -9,6 +9,7 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.TagLostException;
 import android.nfc.tech.IsoDep;
+import android.nfc.tech.NfcA;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
@@ -35,6 +36,7 @@ import nz.cardforge.desfire.DesfireException;
 import nz.cardforge.desfire.Hex;
 import nz.cardforge.ntag.Ntag424Encoder;
 import nz.cardforge.ntag.Ntag424Session;
+import nz.cardforge.ntag.Ntag21xEncoder;
 
 /**
  * Verity mode: staff encode NTAG 424 DNA product tags, check them, and wipe test tags.
@@ -99,10 +101,15 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
             if (!api.isSignedIn()) { ui(() -> setStatus("Sign in first.", RED)); return; }
             final Mode m = mode;
             byte[] id = tag.getId();
-            if (id.length != 7) { ui(() -> setStatus("This isn't an NTAG 424 DNA (UID isn't 7 bytes).", RED)); return; }
+            if (id.length != 7) { ui(() -> setStatus("This isn't an NTAG 424 DNA or NTAG21x (UID isn't 7 bytes).", RED)); return; }
             String uid = Hex.encode(id);
             iso = IsoDep.get(tag);
-            if (iso == null) { ui(() -> setStatus("This tag doesn't support ISO-DEP, so it isn't an NTAG 424 DNA.", RED)); return; }
+            if (iso == null) {
+                NfcA a = NfcA.get(tag);
+                if (a == null) { ui(() -> setStatus("Unsupported tag. Use NTAG 424 DNA (or NTAG213/215/216 for testing).", RED)); return; }
+                handleTestTag(a, uid, m);
+                return;
+            }
             iso.connect();
             iso.setTimeout(3000);
             Ntag424Encoder enc = new Ntag424Encoder(new Ntag424Session(iso::transceive));
@@ -172,6 +179,49 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
             if (keys != null) for (byte[] k : keys.k) Arrays.fill(k, (byte) 0);
             try { if (iso != null) iso.close(); } catch (IOException ignored) { }
             busy.set(false);
+        }
+    }
+
+    /** NTAG213/215/216: test-only tags (no crypto). Same Encode / Check / Reset flow. */
+    private void handleTestTag(NfcA a, String uid, Mode m) throws Exception {
+        try {
+            a.connect();
+            a.setTimeout(1000);
+            Ntag21xEncoder enc = new Ntag21xEncoder(a::transceive);
+            Ntag21xEncoder.Model model = enc.identify();
+            ui(() -> { logView.setText(""); setStatus("Working… keep the tag still", GREY); });
+            log(model.name + " " + uid + " (TEST tag: no signature)");
+            switch (m) {
+                case ENCODE: {
+                    String batchId = onUiBatch();
+                    if (batchId == null) { ui(() -> setStatus("Pick a batch first (tap Refresh batches).", RED)); return; }
+                    JSONObject r = api.encoder(new JSONObject().put("action", "register_21x").put("batch_id", batchId).put("uid", uid));
+                    log("Registered as a test tag");
+                    log("Writing URL and switching on the UID + counter mirror");
+                    enc.encode(r.getString("url"));
+                    String url = enc.readUrl();
+                    lastTapUrl = url;
+                    log("Read back: " + url);
+                    showVerdict(api.verifyAsStaff(url), "Test tag encoded ✔ (not secure, for trying the flow)");
+                    break;
+                }
+                case CHECK: {
+                    String url = enc.readUrl();
+                    lastTapUrl = url;
+                    log("Tap URL: " + url);
+                    showVerdict(api.verifyAsStaff(url), "Genuine ✔ (test tag)");
+                    break;
+                }
+                case RESET: {
+                    if (!onUiArmed()) { ui(() -> setStatus("Tick \"Armed\" first, then tap the tag to wipe it.", RED)); return; }
+                    enc.reset();
+                    try { api.encoder(new JSONObject().put("action", "mark_reset").put("uid", uid)); } catch (VerityApi.ApiException ignored) { }
+                    ui(() -> { resetArmed.setChecked(false); setStatus("Wiped ✔ URL cleared and mirror off. Encode it again any time.", GREEN); });
+                    break;
+                }
+            }
+        } finally {
+            try { a.close(); } catch (IOException ignored) { }
         }
     }
 
@@ -335,7 +385,7 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
         for (int i = 0; i < tabs.length; i++) tabs[i].setEnabled(Mode.values()[i] != m);
         resetPanel.setVisibility(m == Mode.RESET ? View.VISIBLE : View.GONE);
         switch (m) {
-            case ENCODE: modeHint.setText("Hold a blank NTAG 424 DNA tag to the phone. It gets its own keys, is registered to the batch above, then read back and checked."); break;
+            case ENCODE: modeHint.setText("Hold a blank NTAG 424 DNA tag to the phone. It gets its own keys, is registered to the batch above, then read back and checked. NTAG213/215/216 also work as TEST tags (no security, for trying the flow)."); break;
             case CHECK: modeHint.setText("Hold any Verity tag to the phone to see what the server decides, with the technical detail shoppers never see. Staff checks don't count as shopper scans."); break;
             case RESET: modeHint.setText("Wipes a Verity tag back to factory keys so you can reuse it for testing. It stops working as a Verity tag."); break;
         }

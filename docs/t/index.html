@@ -60,8 +60,10 @@ body.warn { --bg: var(--warn-bg); }
     BROKEN_LINK: "This link is broken or incomplete. Try tapping the tag again."
   };
 
+  var TEST = '<p style="font-size:13px;border:1px dashed currentColor;border-radius:10px;padding:8px 10px;opacity:.8">Test tag, for trying out Verity. It is not proof of authenticity.</p>';
   function render(r) {
     var b = r.brand || {};
+    var test = r.testTag ? TEST : "";
     brandEl.textContent = b.name || "Verity";
     if (r.verdict === "GENUINE") {
       var prod = r.product ? '<div class="card"><strong>' + esc(r.product.name) + '</strong>' +
@@ -71,7 +73,7 @@ body.warn { --bg: var(--warn-bg); }
         '<h1 style="color:var(--good-ink)">It\'s genuine</h1>' +
         '<p>This product is the real thing, checked just now with ' + esc((b.name || "the brand").replace(/\.$/, "")) + '.</p>' + prod +
         (b.story ? '<p style="font-size:15px">' + esc(b.story) + '</p>' : "") +
-        (b.linkUrl ? '<a class="btn" href="' + esc(b.linkUrl) + '">' + esc(b.linkLabel || "Learn more") + '</a>' : "");
+        (b.linkUrl ? '<a class="btn" href="' + esc(b.linkUrl) + '">' + esc(b.linkLabel || "Learn more") + '</a>' : "") + test;
       document.title = "It's genuine";
       return;
     }
@@ -85,14 +87,15 @@ body.warn { --bg: var(--warn-bg); }
         '<div class="step"><b>1</b><span>Don\'t buy it yet, or keep your receipt if you already have.</span></div>' +
         '<div class="step"><b>2</b><span>Tell ' + esc(b.name || "the brand") + ' where you found it.</span></div>' +
         '<div class="step"><b>3</b><span>Buy from a listed stockist next time.</span></div>' +
-      '</div></div>');
+      '</div></div>') + test;
     document.title = title;
   }
 
   var tz = "";
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
   var url = VERITY.supabaseUrl + "/functions/v1/verify?b=" + encodeURIComponent(q.get("b") || "") +
-    "&p=" + encodeURIComponent(q.get("p") || "") + "&m=" + encodeURIComponent(q.get("m") || "") + "&tz=" + encodeURIComponent(tz);
+    "&p=" + encodeURIComponent(q.get("p") || "") + "&m=" + encodeURIComponent(q.get("m") || "") +
+    (q.get("u") ? "&u=" + encodeURIComponent(q.get("u")) : "") + "&tz=" + encodeURIComponent(tz);
   fetch(url, { headers: { apikey: VERITY.anonKey } })
     .then(function (res) { return res.json(); })
     .then(render)
