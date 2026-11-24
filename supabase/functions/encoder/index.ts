@@ -6,6 +6,7 @@
 //   reset_keys { uid }                -> current keys of an encoded tag, so the app can wipe it back to factory
 //   mark_reset { uid }                -> marks a wiped tag as reset
 //   register_21x { batch_id, uid }    -> registers an NTAG213/215/216 TEST tag (no crypto) and returns its URL template
+//   register_static { batch_id, uid } -> registers a MIFARE Ultralight TEST tag with a short static link ?s=<code>
 //   test_create { batch_id }          -> makes a virtual test tag (no hardware) in a batch
 //   test_tap   { tag_id }             -> the virtual tag "taps": returns a fresh signed tap URL
 //   test_old_link { tag_id }          -> the previous URL of a virtual tag (to demo a copied link)
@@ -96,6 +97,25 @@ Deno.serve(async (req) => {
         // The tag fills u= with "<UID hex>x<counter hex>" (21 chars) on every read.
         // deno-lint-ignore no-explicit-any
         return json({ ok: true, url: `${TAP_BASE}?b=${(batch as any).brands.slug}&u=${"0".repeat(14)}x${"0".repeat(6)}` });
+      }
+      case "register_static": {
+        const { data: batch } = await db.from("batches").select("id, brand_id").eq("id", body.batch_id).maybeSingle();
+        if (!batch) return json({ error: "Batch not found" }, 404);
+        const { data: old } = await db.from("tags").select("short_code").eq("brand_id", batch.brand_id).eq("uid", uid).maybeSingle();
+        const ABC = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+        let code = old?.short_code as string | null;
+        for (let i = 0; i < 5; i++) {
+          if (!code) code = Array.from(globalThis.crypto.getRandomValues(new Uint8Array(6)), (b) => ABC[b % ABC.length]).join("");
+          const { error } = await db.from("tags").upsert({
+            brand_id: batch.brand_id, batch_id: batch.id, uid, status: "active", chip: "ultralight", short_code: code,
+            last_ctr: -1, scan_count: 0, first_scan_at: null, last_scan_at: null,
+            encoded_at: new Date().toISOString(), encoded_by: who.user.id,
+          }, { onConflict: "brand_id,uid" });
+          if (!error) return json({ ok: true, url: `${TAP_BASE}?s=${code}` });
+          if (!String(error.message).includes("short_code")) throw error;
+          code = null; // clash with another tag's code, try a new one
+        }
+        throw new Error("Could not make a unique short code");
       }
       case "reset_keys": {
         const { data: tag } = await db.from("tags").select("brand_id").eq("uid", uid).maybeSingle();

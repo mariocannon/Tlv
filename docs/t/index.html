@@ -95,7 +95,8 @@ body.warn { --bg: var(--warn-bg); }
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
   var url = VERITY.supabaseUrl + "/functions/v1/verify?b=" + encodeURIComponent(q.get("b") || "") +
     "&p=" + encodeURIComponent(q.get("p") || "") + "&m=" + encodeURIComponent(q.get("m") || "") +
-    (q.get("u") ? "&u=" + encodeURIComponent(q.get("u")) : "") + "&tz=" + encodeURIComponent(tz);
+    (q.get("u") ? "&u=" + encodeURIComponent(q.get("u")) : "") +
+    (q.get("s") ? "&s=" + encodeURIComponent(q.get("s")) : "") + "&tz=" + encodeURIComponent(tz);
   fetch(url, { headers: { apikey: VERITY.anonKey } })
     .then(function (res) { return res.json(); })
     .then(render)

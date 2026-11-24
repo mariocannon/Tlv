@@ -76,9 +76,9 @@ public final class VerityApi {
 
     /** Runs a tap URL through the verify function as a staff check (qc=1), so it shows technical detail. */
     public JSONObject verifyAsStaff(String tapUrl) throws IOException, ApiException, JSONException {
-        String b = param(tapUrl, "b"), p = param(tapUrl, "p"), m = param(tapUrl, "m"), u = param(tapUrl, "u");
+        String b = param(tapUrl, "b"), p = param(tapUrl, "p"), m = param(tapUrl, "m"), u = param(tapUrl, "u"), s = param(tapUrl, "s");
         String url = URL_BASE + "/functions/v1/verify?qc=1&b=" + enc(b) + "&p=" + enc(p) + "&m=" + enc(m)
-                + (u != null ? "&u=" + enc(u) : "")
+                + (u != null ? "&u=" + enc(u) : "") + (s != null ? "&s=" + enc(s) : "")
                 + "&tz=" + enc(TimeZone.getDefault().getID());
         return http("GET", url, null, token());
     }

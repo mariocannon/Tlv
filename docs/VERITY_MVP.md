@@ -72,6 +72,8 @@ In CardForge, **Check** shows the server's reasoning for any tag: verdict, count
 
 **NTAG213 / 215 / 216 stickers.** In CardForge → Verity → **Encode**, tap a cheap NTAG21x sticker. It's registered as a *test tag*: the app writes `…/t/?b=<brand>&u=<UID>x<counter>` and turns on the chip's UID + counter mirror, so every phone tap sends a higher counter. Copied links are caught, but there's **no signature**, so anyone could type a fake link. The shopper page shows a "Test tag" note and the dashboard marks these tags. Check and Reset work the same way. Never use these on real products.
 
+**MIFARE Ultralight / Ultralight EV1 / Ultralight C stickers.** Same Encode / Check / Reset flow. These chips have no counter mirror and only 48 bytes, so they get a short static link `…/t/?s=<code>`. Every tap shows the product page (marked "Test tag"), but a copied link looks identical, so they **can't catch copies**. Good for showing the shopper experience, nothing more.
+
 ## 8. A 3-minute demo for someone else
 
 1. Hand them the tagged product and say: "Tap it with your phone." They see **It's genuine**.

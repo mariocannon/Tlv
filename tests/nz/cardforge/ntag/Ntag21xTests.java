@@ -69,6 +69,21 @@ public final class Ntag21xTests {
         boolean tooLong = false;
         try { new Ntag21xEncoder(new Ntag21xSim(0x0F, uid)).encode("https://x.example/" + "a".repeat(150) + "?b=d&u=00000000000000x000000"); } catch (DesfireException e) { tooLong = true; }
         check(tooLong, "URL too long for NTAG213 refused");
+        // MIFARE Ultralight static links: the real URL must fit 48 bytes.
+        String st = "https://mariocannon.github.io/Tlv/t/?s=K7Q2MX";
+        UltralightEncoder.Model[] ms = { UltralightEncoder.ULTRALIGHT, UltralightEncoder.UL_EV1_48, UltralightEncoder.UL_EV1_128, UltralightEncoder.ULTRALIGHT_C };
+        for (UltralightEncoder.Model um : ms) {
+            Ntag21xSim sim = new Ntag21xSim(0x0F, uid); // same READ/WRITE commands as an Ultralight
+            UltralightEncoder ue = new UltralightEncoder(sim);
+            ue.encode(um, st);
+            check(ue.readUrl().equals(st), um.name + " static link round trip");
+        }
+        check(UltralightEncoder.ndef(st, 48).length <= 48, "static link fits 48-byte Ultralight (" + UltralightEncoder.ndef(st, 48).length + " bytes)");
+        boolean big = false;
+        try { UltralightEncoder.ndef("https://mariocannon.github.io/Tlv/t/?b=demo&s=K7Q2MXK7Q2MX", 48); } catch (DesfireException e) { big = true; }
+        check(big, "too-long link refused on 48-byte Ultralight");
+        check(UltralightEncoder.fromVersion(new byte[] { 0, 4, 3, 1, 1, 0, 0x0B, 3 }) == UltralightEncoder.UL_EV1_48, "EV1 MF0UL11 detected");
+        check(UltralightEncoder.fromVersion(new byte[] { 0, 4, 3, 1, 1, 0, 0x0E, 3 }) == UltralightEncoder.UL_EV1_128, "EV1 MF0UL21 detected");
         System.out.println("NTAG21x: " + passed + " passed");
     }
 }

@@ -59,6 +59,31 @@ Deno.serve(async (req) => {
   const qc = q.get("qc") === "1" && (await isStaff(req.headers.get("Authorization")));
   const source = qc ? "qc" : "shopper";
 
+  // MIFARE Ultralight TEST tags carry only ?s=<short code> (they hold 48 bytes). No counter, no
+  // signature: every tap shows the product, so these prove the flow, not authenticity.
+  const sc = (q.get("s") ?? "").toUpperCase();
+  if (sc && !slug) {
+    if (!/^[0-9A-Z]{4,12}$/.test(sc)) return json({ verdict: "BROKEN_LINK", reason: "The link is incomplete." });
+    const { data: st } = await db.from("tags")
+      .select("id, uid, status, scan_count, first_scan_at, brand_id, brands(name, accent, story, link_label, link_url), batches(product_id, products(name, details))")
+      .eq("short_code", sc).maybeSingle();
+    if (!st) return json({ verdict: "UNKNOWN_TAG", reason: "No test tag has this code." });
+    // deno-lint-ignore no-explicit-any
+    const sb: any = (st as any).brands ?? {}, sbat: any = (st as any).batches ?? null;
+    const sOut = { name: sb.name, accent: sb.accent, story: sb.story, linkLabel: sb.link_label, linkUrl: sb.link_url };
+    const sProduct = sbat?.products ?? null;
+    const ok = st.status === "active";
+    const verdict = ok ? "GENUINE" : "CANCELLED_TAG";
+    await db.from("scans").insert({ brand_id: st.brand_id, verdict, source, place, uid: st.uid, tag_id: st.id,
+      product_id: sbat?.product_id ?? null, user_agent: (req.headers.get("user-agent") ?? "").slice(0, 200) });
+    if (ok && !qc) {
+      const now = new Date().toISOString();
+      await db.from("tags").update({ scan_count: st.scan_count + 1, last_scan_at: now, first_scan_at: st.first_scan_at ?? now }).eq("id", st.id);
+    }
+    return json({ verdict, brand: sOut, product: sProduct, scanCount: st.scan_count + (ok && !qc ? 1 : 0), testTag: true, staticTag: true,
+      ...(qc ? { tech: { uid: st.uid, chip: "ultralight", reason: ok ? "STATIC TEST TAG: no counter or signature, copies can't be detected." : `Tag status is ${st.status}.` } } : {}) });
+  }
+
   const { data: brand } = await db.from("brands")
     .select("id, slug, name, accent, story, link_label, link_url").eq("slug", slug).maybeSingle();
   if (!brand) return json({ verdict: "BROKEN_LINK", reason: "Unknown brand in link" });

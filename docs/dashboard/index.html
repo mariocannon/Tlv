@@ -156,7 +156,7 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
     }).join("") : '<tr><td colspan="4" class="muted">All clear.</td></tr>';
     $("tags").innerHTML = tags.length ? tags.map(function (t) {
       var on = t.status === "active";
-      var chip = t.chip === "virtual" ? '<span class="chip test">virtual test</span>' : t.chip === "ntag21x" ? '<span class="chip test">NTAG21x test</span>' : '<span class="chip">424 DNA</span>';
+      var chip = t.chip === "virtual" ? '<span class="chip test">virtual test</span>' : t.chip === "ntag21x" ? '<span class="chip test">NTAG21x test</span>' : t.chip === "ultralight" ? '<span class="chip test">Ultralight test</span>' : '<span class="chip">424 DNA</span>';
       return '<tr><td class="mono">' + t.uid + chip + '</td><td>' + esc(t.brands && t.brands.name) + '</td><td class="mono">' + esc(t.batches && t.batches.code) + '</td><td><span class="pill ' + t.status + '">' + t.status + '</span></td><td class="mono">' + (t.last_ctr < 0 ? "—" : t.last_ctr) +
         '</td><td>' + t.scan_count + '</td><td>' + when(t.last_scan_at) + '</td><td>' + (t.status === "reset" ? "" : '<button class="btn" data-tag="' + t.id + '" data-to="' + (on ? "cancelled" : "active") + '" type="button">' + (on ? "Cancel" : "Restore") + '</button>') + '</td></tr>';
     }).join("") : '<tr><td colspan="8" class="muted">No tags yet.</td></tr>';
