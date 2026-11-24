@@ -453,14 +453,20 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
 
     private void setMode(Mode m) {
         mode = m;
-        for (int i = 0; i < tabs.length; i++) tabs[i].setEnabled(Mode.values()[i] != m);
+        for (int i = 0; i < tabs.length; i++) {
+            boolean on = Mode.values()[i] == m;
+            // Selected tab is filled green with a tick (not greyed out, which looked disabled).
+            tabs[i].getBackground().setColorFilter(on ? GREEN : Color.rgb(0xE0, 0xE0, 0xE0), android.graphics.PorterDuff.Mode.MULTIPLY);
+            tabs[i].setTextColor(on ? Color.WHITE : Color.BLACK);
+            tabs[i].setText((on ? "✓ " : "") + new String[] {"Encode", "Check", "Reset"}[i]);
+        }
         resetPanel.setVisibility(m == Mode.RESET ? View.VISIBLE : View.GONE);
         switch (m) {
             case ENCODE: modeHint.setText("Hold a blank NTAG 424 DNA tag to the phone. It gets its own keys, is registered to the batch above, then read back and checked. NTAG213/215/216 and MIFARE Ultralight also work as TEST tags (no security, for trying the flow)."); break;
             case CHECK: modeHint.setText("Hold any Verity tag to the phone to see what the server decides, with the technical detail shoppers never see. Staff checks don't count as shopper scans."); break;
             case RESET: modeHint.setText("Wipes a Verity tag back to factory keys so you can reuse it for testing. It stops working as a Verity tag."); break;
         }
-        setStatus("", GREY);
+        setStatus(m == Mode.RESET ? "Tick Armed, then hold the tag to the back of the phone." : "Ready. Hold a tag to the back of the phone.", GREY);
     }
 
     private void refreshSignIn() {
