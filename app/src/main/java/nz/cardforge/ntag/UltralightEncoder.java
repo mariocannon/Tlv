@@ -18,7 +18,7 @@ public final class UltralightEncoder {
     public static final class Model {
         public final String name;
         public final int userBytes, ccSize;
-        Model(String name, int userBytes, int ccSize) { this.name = name; this.userBytes = userBytes; this.ccSize = ccSize; }
+        public Model(String name, int userBytes, int ccSize) { this.name = name; this.userBytes = userBytes; this.ccSize = ccSize; }
     }
 
     public static final Model ULTRALIGHT = new Model("MIFARE Ultralight", 48, 0x06);
@@ -30,6 +30,11 @@ public final class UltralightEncoder {
     private final DesfireSession.Transceiver io;
 
     public UltralightEncoder(DesfireSession.Transceiver io) { this.io = io; }
+
+    /** Generic model from the capability container size byte (CC[2] x 8 = data bytes), for compatible/clone chips. */
+    public static Model fromCc(int ccSize) {
+        return new Model("Ultralight-compatible (" + ccSize * 8 + " bytes)", Math.min(ccSize * 8, 4 * 60), ccSize);
+    }
 
     /** Model from a GET_VERSION reply (Ultralight EV1 answers it; older Ultralights don't). */
     public static Model fromVersion(byte[] v) throws DesfireException {

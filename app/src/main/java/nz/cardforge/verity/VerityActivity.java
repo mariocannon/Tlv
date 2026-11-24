@@ -202,7 +202,18 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
             log("Tag type " + (mu == null ? "NfcA" : "Ultralight family") + ", CC " + ccHex);
             int size = cc != null && cc.length >= 4 && cc[0] == (byte) 0xE1 ? cc[2] & 0xFF : -1;
             switch (size) {
-                case 0x12: case 0x3E: case 0x6D: handleTestTag(a, uid, m); return;               // NTAG213/215/216
+                case 0x12: case 0x3E: case 0x6D: {                                              // NTAG213/215/216 size
+                    byte[] ver = null;
+                    try { ver = a.transceive(new byte[] { 0x60 }); } catch (IOException noVersion) { ver = null; }
+                    log("Version " + (ver == null ? "none" : Hex.encode(ver)));
+                    if (ver != null && ver.length >= 8 && ver[2] == 0x04) { handleTestTag(a, uid, m); return; }
+                    // Clone / compatible chip that doesn't answer like an NTAG: use a static link.
+                    try { a.close(); } catch (IOException ignored) { }
+                    a.connect();
+                    a.setTimeout(1000);
+                    handleStatic(a, uid, m, UltralightEncoder.fromCc(size));
+                    return;
+                }
                 case 0x10: handleStatic(a, uid, m, UltralightEncoder.UL_EV1_128); return;       // Ultralight EV1 128 B
                 case 0x06: handleStatic(a, uid, m, UltralightEncoder.ULTRALIGHT); return;       // Ultralight / EV1 48 B
                 default: break;
@@ -211,7 +222,7 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
             byte[] v = null;
             try { v = a.transceive(new byte[] { 0x60 }); } catch (IOException noVersion) { v = null; }
             log("Version " + (v == null ? "none" : Hex.encode(v)));
-            if (v != null && v.length >= 8 && v[1] == 0x04 && v[2] == 0x04) { handleTestTag(a, uid, m); return; }
+            if (v != null && v.length >= 8 && v[2] == 0x04) { handleTestTag(a, uid, m); return; }
             if (v != null && v.length >= 8 && v[1] == 0x04 && v[2] == 0x03) { handleStatic(a, uid, m, UltralightEncoder.fromVersion(v)); return; }
             try { a.close(); } catch (IOException ignored) { }
             a.connect();
@@ -271,10 +282,22 @@ public class VerityActivity extends Activity implements NfcAdapter.ReaderCallbac
                     JSONObject r = api.encoder(new JSONObject().put("action", "register_21x").put("batch_id", batchId).put("uid", uid));
                     log("Registered as a test tag");
                     log("Writing URL and switching on the UID + counter mirror");
-                    enc.encode(r.getString("url"));
+                    try {
+                        enc.encode(r.getString("url"));
+                    } catch (nz.cardforge.desfire.DesfireException notReal) {
+                        if (notReal.getMessage() != null && notReal.getMessage().contains("password")) throw notReal;
+                        log("Mirror setup refused (" + notReal.getMessage() + "). Switching to a static test link.");
+                        handleStatic(a, uid, m, new UltralightEncoder.Model(model.name + "-compatible", model.userBytes(), 0));
+                        return;
+                    }
                     String url = enc.readUrl();
-                    lastTapUrl = url;
                     log("Read back: " + url);
+                    if (url.contains("u=00000000000000x")) {
+                        log("This chip doesn't fill in the UID/counter mirror. Switching to a static test link.");
+                        handleStatic(a, uid, m, new UltralightEncoder.Model(model.name + "-compatible", model.userBytes(), 0));
+                        return;
+                    }
+                    lastTapUrl = url;
                     showVerdict(api.verifyAsStaff(url), "Test tag encoded ✔ (not secure, for trying the flow)");
                     break;
                 }

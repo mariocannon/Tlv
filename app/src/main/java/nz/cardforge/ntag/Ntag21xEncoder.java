@@ -43,8 +43,9 @@ public final class Ntag21xEncoder {
     /** GET_VERSION: identifies NTAG213/215/216, or throws if it's something else. */
     public Model identify() throws IOException, DesfireException {
         byte[] v = io.transceive(new byte[] { 0x60 });
-        if (v == null || v.length < 8 || v[1] != 0x04 || v[2] != 0x04)
-            throw new DesfireException("Not an NTAG21x tag");
+        // Accept NTAG21x-compatible chips from other makers too (vendor byte != 0x04).
+        if (v == null || v.length < 8 || v[2] != 0x04)
+            throw new DesfireException("Not an NTAG21x tag (version " + (v == null ? "none" : nz.cardforge.desfire.Hex.encode(v)) + ")");
         switch (v[6] & 0xFF) {
             case 0x0F: return NTAG213;
             case 0x11: return NTAG215;
