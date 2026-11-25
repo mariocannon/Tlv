@@ -53,7 +53,6 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
       <div class="stage">
         <Guilloche class="rosette" size={900} rings={16} petals={24} weight={1.1} />
         <div class="phone" aria-live="polite">
-          <div class="bar"><span class="lock" aria-hidden="true"></span><span class="url" id="url">mariocannon.github.io/Tlv/t/</span></div>
           <div class="screen" id="screen" data-state="idle">
             <div class="idle">
               <div class="tag-ring" aria-hidden="true"></div>
@@ -183,26 +182,22 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
   <script>
     // ---- Tap demo (simulated: the real check runs server-side) ----
     const screen = document.getElementById("screen")!;
-    const urlEl = document.getElementById("url")!;
     const countEl = document.getElementById("count")!;
     const tapBtn = document.getElementById("tap") as HTMLButtonElement;
     const copyBtn = document.getElementById("copy") as HTMLButtonElement;
-    const hex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-    let taps = 0, lastUrl = "";
+    let taps = 0;
 
-    function show(state: "ok" | "bad", url: string) {
+    function show(state: "ok" | "bad") {
       screen.dataset.state = "busy";
-      urlEl.textContent = url;
       window.setTimeout(() => { screen.dataset.state = state; }, 420);
     }
     tapBtn.addEventListener("click", () => {
       taps++;
-      lastUrl = `mariocannon.github.io/Tlv/t/?b=kowhai&p=${hex(16)}&m=${hex(8)}`;
       countEl.textContent = taps === 1 ? "First time this jar has been checked" : `Checked ${taps} times`;
       copyBtn.disabled = false;
-      show("ok", lastUrl);
+      show("ok");
     });
-    copyBtn.addEventListener("click", () => show("bad", lastUrl));
+    copyBtn.addEventListener("click", () => show("bad"));
 
     // ---- Pilot form -> Supabase (insert-only table) ----
     const form = document.getElementById("apply") as HTMLFormElement;
