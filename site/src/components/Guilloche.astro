@@ -1,0 +1,22 @@
+---
+// Banknote-style guilloche rosette, computed at build time (no runtime cost).
+interface Props { size?: number; rings?: number; petals?: number; class?: string; stroke?: string; weight?: number; }
+const { size = 600, rings = 14, petals = 18, class: cls = "", stroke = "currentColor", weight = 1 } = Astro.props;
+const c = size / 2;
+const paths: string[] = [];
+for (let i = 0; i < rings; i++) {
+  // Rings stay inside the box: radius runs from 14% to ~43% of the size.
+  const base = size * 0.14 + i * ((size * 0.27) / Math.max(1, rings - 1));
+  const a = size * 0.028, b = size * 0.007, ph = i * 0.24;
+  let d = "";
+  for (let s = 0; s <= 900; s++) {
+    const t = (s / 900) * Math.PI * 2;
+    const r = base + a * Math.sin(petals * t + ph) + b * Math.sin((petals * 2) * t - ph * 3);
+    d += (s ? "L" : "M") + (c + r * Math.cos(t)).toFixed(1) + " " + (c + r * Math.sin(t)).toFixed(1);
+  }
+  paths.push(d + "Z");
+}
+---
+<svg class={cls} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" fill="none" stroke={stroke} stroke-width={(size / 900) * weight}>
+  {paths.map((d) => <path d={d} />)}
+</svg>

@@ -1,0 +1,390 @@
+---
+import "@fontsource-variable/schibsted-grotesk";
+import "@fontsource/jetbrains-mono/400.css";
+import Guilloche from "../components/Guilloche.astro";
+
+const base = import.meta.env.BASE_URL;
+const SUPABASE_URL = "https://emcuwvuouggvdwnowlwr.supabase.co";
+const ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtY3V3dnVvdWdndmR3bm93bHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTczNDIsImV4cCI6MjExMDk3MzM0Mn0.AezCpoLohG9fX3pXJJkWA6iCxWEtwCJD31hcdyRk4UM";
+
+const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear", "Trading cards and collectables", "Supplements and skincare"];
+---
+<!doctype html>
+<html lang="en-NZ">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verity · Product tags that can't be copied</title>
+  <meta name="description" content="Verity puts a secure NFC chip on your product. Shoppers tap it with their phone to check it's genuine. You see every scan, and every copy. Now taking NZ pilot brands." />
+  <meta property="og:title" content="Verity: product tags that can't be copied" />
+  <meta property="og:description" content="Tap to check it's genuine. Now taking NZ pilot brands." />
+  <meta name="theme-color" content="#13231D" />
+  <link rel="icon" href={`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#1E6A4C"/><path d="M9 16.5l4.5 4.5L23 11" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>')}`} />
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <a class="brand" href="#top" aria-label="Verity home">
+      <span class="seal" aria-hidden="true"><Guilloche size={120} rings={4} petals={10} weight={14} /></span>
+      Verity
+    </a>
+    <nav aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#brands">For brands</a>
+      <a href="#faq">Questions</a>
+      <a class="btn small" href="#pilot">Apply for the pilot</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- Hero: the product itself is the hero. A working tap simulation. -->
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <h1>A product tag that can't be copied.</h1>
+        <p class="lede">Verity puts a secure chip on your product. Shoppers tap it with their phone and see, in a second, that it's the real thing. You see every scan, and every copy, as it happens.</p>
+        <div class="actions">
+          <a class="btn" href="#pilot">Apply for the pilot</a>
+          <span class="note">Now taking a small group of New Zealand brands.</span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <Guilloche class="rosette" size={900} rings={16} petals={24} weight={1.1} />
+        <div class="phone" aria-live="polite">
+          <div class="bar"><span class="lock" aria-hidden="true"></span><span class="url" id="url">mariocannon.github.io/Tlv/t/</span></div>
+          <div class="screen" id="screen" data-state="idle">
+            <div class="idle">
+              <div class="tag-ring" aria-hidden="true"></div>
+              <p>Tap the tag to check this jar.</p>
+            </div>
+            <div class="verdict ok">
+              <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+              <h2>It's genuine</h2>
+              <p>Kōwhai Mānuka Co.<br />Mānuka Honey UMF 15+ 500 g</p>
+              <p class="count" id="count">First time this jar has been checked</p>
+            </div>
+            <div class="verdict bad">
+              <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v8M12 18h.01"/></svg></div>
+              <h2>This may not be genuine</h2>
+              <p>This link was already used. It's likely a copy of a real tag.</p>
+            </div>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn" type="button" id="tap">Tap the tag</button>
+          <button class="btn ghost" type="button" id="copy" disabled>Open a copied link</button>
+        </div>
+        <p class="demo-note">A demonstration. The real check runs on Verity's server.</p>
+      </div>
+    </section>
+
+    <!-- The core idea: a rolling code. This is a real sequence, so the tap numbers carry meaning. -->
+    <section class="how" id="how">
+      <div class="how-copy">
+        <h2>The code changes every time it's tapped.</h2>
+        <p>Inside each tag is an NXP NTAG 424 DNA chip, the same family used for secure access cards. On every tap it signs a fresh, one-time code with a key that never leaves the chip.</p>
+        <p>A counterfeiter can copy the link, or print a look-alike sticker. What they can't do is make a new code. The moment an old one turns up again, the shopper sees a warning and you get an alert.</p>
+      </div>
+      <ol class="taps" aria-label="Example: three taps of one tag">
+        <li><span class="n">Tap 41</span><code>p=8F3A…C21E&amp;m=5B0D…7A44</code><span class="res good">Genuine</span></li>
+        <li><span class="n">Tap 42</span><code>p=E71C…09B3&amp;m=A2F6…1D8C</code><span class="res good">Genuine</span></li>
+        <li><span class="n">Tap 42 again</span><code>p=E71C…09B3&amp;m=A2F6…1D8C</code><span class="res bad">Copied link</span></li>
+      </ol>
+    </section>
+
+    <section class="brands" id="brands">
+      <h2>What you get as a brand</h2>
+      <div class="cols">
+        <dl class="features">
+          <div><dt>A check page in your colours</dt><dd>Shoppers see your name, the product and batch, and a link to your shop. No app to download: any phone with NFC opens it.</dd></div>
+          <div><dt>Every scan, live</dt><dd>When and roughly where each tag was checked, and how many times. Useful well beyond fraud: you learn where your product actually ends up.</dd></div>
+          <div><dt>Alerts that matter</dt><dd>A reused link, a tag scanned in two cities within an hour, or a tag we've never seen. Each one lands on your dashboard.</dd></div>
+          <div><dt>Cancel a tag in one click</dt><dd>Stolen pallet or returned stock? Cancel those tags and anyone who scans them is told to ask where it came from.</dd></div>
+        </dl>
+        <aside class="fit">
+          <h3>A good fit if you sell</h3>
+          <ul>{categories.map((c) => <li>{c}</li>)}</ul>
+          <p>Anything with a price worth faking, or a story worth telling at the shelf.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="pilot" id="pilot">
+      <div class="pilot-copy">
+        <h2>Join the pilot</h2>
+        <p>We're working with a handful of New Zealand brands first, closely, to get this right.</p>
+        <ol class="steps">
+          <li><b>Tell us about your product.</b> What you sell, how many units, and where copies show up.</li>
+          <li><b>We set up your tags.</b> Your brand page, your products and a first batch of encoded tags.</li>
+          <li><b>Put them on stock.</b> Scans start showing on your dashboard from the first tap.</li>
+          <li><b>Review together.</b> We go through the data with you and decide on next steps.</li>
+        </ol>
+      </div>
+
+      <form class="apply" id="apply" novalidate>
+        <div class="row">
+          <label>Your name<input name="name" autocomplete="name" required maxlength="120" /></label>
+          <label>Work email<input name="email" type="email" autocomplete="email" required maxlength="200" /></label>
+        </div>
+        <label>Brand or company<input name="company" autocomplete="organization" required maxlength="160" /></label>
+        <label>What would you tag?<input name="product" maxlength="200" placeholder="e.g. UMF 15+ honey, 500 g jars" /></label>
+        <label>Units a month
+          <select name="volume">
+            <option value="">Choose one</option>
+            <option>Under 500</option>
+            <option>500 to 5,000</option>
+            <option>5,000 to 50,000</option>
+            <option>Over 50,000</option>
+          </select>
+        </label>
+        <label>Anything else<textarea name="message" rows="3" maxlength="2000" placeholder="Where do you see fakes or grey imports?"></textarea></label>
+        <label class="hp" aria-hidden="true">Leave this empty<input name="website" tabindex="-1" autocomplete="off" /></label>
+        <button class="btn" type="submit">Apply for the pilot</button>
+        <p class="form-msg" id="formMsg" role="status"></p>
+      </form>
+    </section>
+
+    <section class="faq" id="faq">
+      <h2>Questions</h2>
+      <details>
+        <summary>Do shoppers need an app?</summary>
+        <p>No. Android phones with NFC and iPhone XS or newer read the tag straight away and open the check page in the browser.</p>
+      </details>
+      <details>
+        <summary>Can someone clone the chip?</summary>
+        <p>Each tag gets its own keys when we encode it, and the chip won't give them up. Copying what a tag sends only copies one old code, and an old code shows up as a copy.</p>
+      </details>
+      <details>
+        <summary>What if someone peels a tag off and moves it to a fake?</summary>
+        <p>Use tamper-evident tags, which break when removed. The dashboard also flags a tag that's scanned in two places too far apart to be the same item.</p>
+      </details>
+      <details>
+        <summary>What do you record about shoppers?</summary>
+        <p>The time of the scan, the result, and a rough location from the phone's time zone. No names, accounts or exact locations.</p>
+      </details>
+      <details>
+        <summary>How do the tags go on?</summary>
+        <p>As a sticker on the label or cap, or built into a hang tag or card. They're about the size of a coin and work through paper and plastic, though not directly on metal.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <span class="brand"><span class="seal" aria-hidden="true"><Guilloche size={120} rings={4} petals={10} weight={14} /></span>Verity</span>
+    <span>Made on the Hibiscus Coast, Aotearoa New Zealand.</span>
+    <a href={`${base}dashboard/`}>Staff sign in</a>
+  </footer>
+
+  <script define:vars={{ SUPABASE_URL, ANON_KEY }}>
+    window.__VERITY = { url: SUPABASE_URL, key: ANON_KEY };
+  </script>
+  <script>
+    // ---- Tap demo (simulated: the real check runs server-side) ----
+    const screen = document.getElementById("screen")!;
+    const urlEl = document.getElementById("url")!;
+    const countEl = document.getElementById("count")!;
+    const tapBtn = document.getElementById("tap") as HTMLButtonElement;
+    const copyBtn = document.getElementById("copy") as HTMLButtonElement;
+    const hex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    let taps = 0, lastUrl = "";
+
+    function show(state: "ok" | "bad", url: string) {
+      screen.dataset.state = "busy";
+      urlEl.textContent = url;
+      window.setTimeout(() => { screen.dataset.state = state; }, 420);
+    }
+    tapBtn.addEventListener("click", () => {
+      taps++;
+      lastUrl = `mariocannon.github.io/Tlv/t/?b=kowhai&p=${hex(16)}&m=${hex(8)}`;
+      countEl.textContent = taps === 1 ? "First time this jar has been checked" : `Checked ${taps} times`;
+      copyBtn.disabled = false;
+      show("ok", lastUrl);
+    });
+    copyBtn.addEventListener("click", () => show("bad", lastUrl));
+
+    // ---- Pilot form -> Supabase (insert-only table) ----
+    const form = document.getElementById("apply") as HTMLFormElement;
+    const msg = document.getElementById("formMsg")!;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      if (f.get("website")) return; // bot
+      const get = (k: string) => String(f.get(k) ?? "").trim();
+      const body = { name: get("name"), email: get("email"), company: get("company"), product: get("product") || null, volume: get("volume") || null, message: get("message") || null };
+      msg.dataset.kind = "error";
+      if (!body.name || !body.company) { msg.textContent = "Add your name and company so we know who to contact."; return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) { msg.textContent = "That email doesn't look right. Check it and try again."; return; }
+      const btn = form.querySelector("button")!;
+      btn.disabled = true; btn.textContent = "Sending…"; msg.textContent = "";
+      try {
+        const v = (window as any).__VERITY;
+        const res = await fetch(`${v.url}/rest/v1/pilot_leads`, {
+          method: "POST",
+          headers: { apikey: v.key, Authorization: `Bearer ${v.key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        form.reset();
+        form.classList.add("sent");
+        msg.dataset.kind = "ok";
+        msg.textContent = `Application sent. We'll email ${body.email} to set up a call.`;
+        btn.textContent = "Application sent";
+      } catch {
+        msg.textContent = "Your application didn't send. Check your connection and try again.";
+        btn.disabled = false; btn.textContent = "Apply for the pilot";
+      }
+    });
+  </script>
+
+  <style is:global>
+    :root {
+      --paper: #EDF1EC;   /* banknote stock */
+      --sheet: #F8FAF7;
+      --ink: #13231D;     /* deep bush green-black */
+      --muted: #4D5F57;
+      --bush: #1E6A4C;    /* kawakawa green, the "genuine" colour */
+      --line: #B4C8BC;    /* guilloche linework */
+      --seal: #A3204F;    /* security-ink magenta, used only for copies */
+      --font: "Schibsted Grotesk Variable", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+      --r: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid var(--bush); outline-offset: 3px; border-radius: 6px; }
+    .skip { position: absolute; left: -999px; } .skip:focus { left: 12px; top: 12px; background: var(--sheet); padding: 8px 12px; z-index: 10; }
+    h1, h2, h3 { margin: 0; font-weight: 750; letter-spacing: -0.025em; line-height: 1.04; }
+    h2 { font-size: clamp(30px, 4vw, 46px); }
+    p { margin: 0; }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 22px; border-radius: 999px; border: 2px solid var(--ink); background: var(--ink); color: var(--sheet); font: 650 16px var(--font); text-decoration: none; cursor: pointer; transition: background .15s, color .15s; }
+    .btn:hover { background: var(--bush); border-color: var(--bush); }
+    .btn.ghost { background: transparent; color: var(--ink); }
+    .btn.ghost:hover:not(:disabled) { background: var(--ink); color: var(--sheet); }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn.small { min-height: 40px; padding: 0 16px; font-size: 15px; }
+
+    .top { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px clamp(18px, 4vw, 48px); background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(10px); }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 21px; letter-spacing: -0.02em; text-decoration: none; }
+    .seal { width: 30px; height: 30px; color: var(--bush); display: inline-block; }
+    .seal svg { width: 100%; height: 100%; }
+    nav { display: flex; align-items: center; gap: clamp(12px, 2.4vw, 28px); font-size: 15px; font-weight: 550; }
+    nav a:not(.btn) { text-decoration: none; }
+    nav a:not(.btn):hover { text-decoration: underline; text-underline-offset: 4px; }
+
+    main > section { padding: clamp(56px, 9vw, 120px) clamp(18px, 4vw, 48px); max-width: 1240px; margin: 0 auto; }
+
+    /* Hero */
+    .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(32px, 5vw, 72px); align-items: center; padding-top: clamp(28px, 5vw, 64px) !important; }
+    .hero h1 { font-size: clamp(46px, 7.2vw, 96px); font-weight: 800; letter-spacing: -0.045em; line-height: .95; max-width: 10ch; }
+    .lede { margin-top: 26px; font-size: clamp(18px, 1.6vw, 21px); color: var(--muted); max-width: 34em; }
+    .actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; }
+    .note { font-size: 15px; color: var(--muted); }
+
+    .stage { position: relative; display: grid; justify-items: center; gap: 18px; padding: 20px 0; }
+    .rosette { position: absolute; inset: 50% auto auto 50%; width: min(140%, 760px); transform: translate(-50%, -54%); color: var(--line); z-index: 0; pointer-events: none; }
+    .phone { position: relative; z-index: 1; width: min(310px, 82vw); aspect-ratio: 9 / 17.5; background: var(--sheet); border: 9px solid var(--ink); border-radius: 44px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 30px 60px -30px rgba(19, 35, 29, .45); }
+    .bar { display: flex; align-items: center; gap: 7px; margin: 12px 12px 0; padding: 8px 11px; background: var(--paper); border-radius: 12px; font: 11.5px/1.2 var(--mono); color: var(--muted); }
+    .url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lock { width: 9px; height: 10px; border: 1.6px solid currentColor; border-radius: 2px; flex: none; position: relative; top: 1px; }
+    .screen { position: relative; flex: 1; }
+    .screen > div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; opacity: 0; transform: scale(.98); transition: opacity .28s ease, transform .28s ease; }
+    .screen[data-state="idle"] .idle, .screen[data-state="ok"] .ok, .screen[data-state="bad"] .bad { opacity: 1; transform: none; }
+    .screen[data-state="busy"] .idle { opacity: 1; transform: none; }
+    .screen[data-state="busy"] .tag-ring { animation: ping .45s ease-out; }
+    .idle p { color: var(--muted); font-size: 15px; max-width: 14em; }
+    .tag-ring { width: 78px; height: 78px; border-radius: 50%; border: 2px dashed var(--line); position: relative; }
+    .tag-ring::after { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--bush); opacity: .9; }
+    @keyframes ping { from { box-shadow: 0 0 0 0 rgba(30, 106, 76, .5); } to { box-shadow: 0 0 0 34px rgba(30, 106, 76, 0); } }
+    .verdict h2 { font-size: 27px; letter-spacing: -0.03em; }
+    .verdict p { font-size: 14.5px; color: var(--muted); }
+    .mark { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; }
+    .mark svg { width: 44px; height: 44px; fill: none; stroke: #fff; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+    .ok .mark { background: var(--bush); } .ok h2 { color: var(--bush); }
+    .bad .mark { background: var(--seal); } .bad h2 { color: var(--seal); }
+    .count { font-weight: 600; color: var(--ink) !important; padding: 7px 12px; border-radius: 999px; background: var(--paper); }
+    .controls { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .demo-note { position: relative; z-index: 1; font-size: 13px; color: var(--muted); }
+
+    /* How it works */
+    .how { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 88px); align-items: start; border-top: 1px solid var(--line); }
+    .how-copy { display: grid; gap: 18px; max-width: 34em; }
+    .how-copy p { color: var(--muted); }
+    .taps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; background: var(--sheet); border-radius: var(--r); border: 1px solid var(--line); }
+    .taps li { display: grid; grid-template-columns: 7.5em 1fr auto; gap: 14px; align-items: center; padding: 18px 20px; border-top: 1px solid var(--line); }
+    .taps li:first-child { border-top: 0; }
+    .taps .n { font-weight: 650; font-size: 15px; }
+    .taps code { font: 13px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .res { font-size: 13.5px; font-weight: 650; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+    .res.good { color: var(--bush); background: #DCEBE2; }
+    .res.bad { color: var(--seal); background: #F4DEE6; }
+    .taps li:last-child code { color: var(--seal); text-decoration: line-through; text-decoration-thickness: 1px; }
+
+    /* Brands */
+    .brands { border-top: 1px solid var(--line); }
+    .brands .cols { margin-top: 40px; display: grid; grid-template-columns: 1.6fr 1fr; gap: clamp(28px, 5vw, 72px); }
+    .features { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 34px 40px; }
+    .features dt { font-weight: 700; font-size: 19px; margin-bottom: 6px; }
+    .features dd { margin: 0; color: var(--muted); font-size: 16.5px; }
+    .fit { background: var(--ink); color: var(--sheet); border-radius: var(--r); padding: 28px; position: relative; overflow: hidden; align-self: start; }
+    .fit h3 { font-size: 20px; }
+    .fit ul { list-style: none; padding: 0; margin: 16px 0 18px; display: grid; gap: 2px; }
+    .fit li { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.3; }
+    .fit p { color: #B9CABF; font-size: 15.5px; }
+
+    /* Pilot */
+    .pilot { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 88px); border-top: 1px solid var(--line); }
+    .pilot-copy > p { margin-top: 14px; color: var(--muted); max-width: 30em; }
+    .steps { margin: 30px 0 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 20px; }
+    .steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 4px 14px; color: var(--muted); font-size: 16.5px; }
+    .steps li::before { content: counter(s); grid-row: span 2; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--bush); color: var(--bush); display: grid; place-items: center; font-weight: 700; font-size: 15px; }
+    .steps b { color: var(--ink); font-weight: 700; }
+    .apply { background: var(--sheet); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 3vw, 34px); display: grid; gap: 16px; align-self: start; }
+    .apply .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .apply label { display: grid; gap: 6px; font-size: 14.5px; font-weight: 600; }
+    .apply input, .apply select, .apply textarea { width: 100%; min-height: 48px; padding: 11px 14px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); font: 400 16px var(--font); }
+    .apply textarea { resize: vertical; }
+    .apply input:focus, .apply select:focus, .apply textarea:focus { border-color: var(--bush); outline: none; box-shadow: 0 0 0 3px #CFE3D8; }
+    .apply .btn { justify-self: start; margin-top: 4px; }
+    .hp { position: absolute !important; left: -9999px; }
+    .form-msg { font-size: 15px; min-height: 1.4em; }
+    .form-msg[data-kind="error"] { color: var(--seal); }
+    .form-msg[data-kind="ok"] { color: var(--bush); font-weight: 650; }
+
+    /* FAQ */
+    .faq { border-top: 1px solid var(--line); max-width: 900px !important; }
+    .faq h2 { margin-bottom: 26px; }
+    details { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; list-style: none; padding: 20px 36px 20px 0; font-weight: 650; font-size: 19px; position: relative; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; position: absolute; right: 4px; top: 16px; font-size: 26px; font-weight: 400; color: var(--bush); transition: transform .2s; }
+    details[open] summary::after { transform: rotate(45deg); }
+    details p { padding: 0 0 22px; color: var(--muted); max-width: 40em; }
+
+    footer { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; justify-content: space-between; padding: 34px clamp(18px, 4vw, 48px) 44px; border-top: 1px solid var(--line); font-size: 15px; color: var(--muted); }
+    footer .brand { color: var(--ink); font-size: 18px; }
+
+    @media (max-width: 900px) {
+      .hero, .how, .pilot, .brands .cols { grid-template-columns: 1fr; }
+      nav a:not(.btn) { display: none; }
+      .hero h1 { max-width: 12ch; }
+      .phone { width: min(270px, 74vw); aspect-ratio: 9 / 15.5; }
+      .stage { overflow: hidden; }
+    }
+    @media (max-width: 560px) {
+      .features, .apply .row { grid-template-columns: 1fr; }
+      .taps li { grid-template-columns: 1fr auto; }
+      .taps code { grid-column: 1 / -1; grid-row: 2; }
+      body { font-size: 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</body>
+</html>

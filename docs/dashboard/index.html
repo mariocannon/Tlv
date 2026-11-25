@@ -86,6 +86,7 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
   <div class="card"><h2>Latest scans</h2><div class="tablewrap"><table><thead><tr><th>When</th><th>Result</th><th>Brand</th><th>Product</th><th>Tag</th><th>Counter</th><th>Where</th><th>Source</th></tr></thead><tbody id="scans"></tbody></table></div></div>
   <div class="card"><h2>Open alerts</h2><div class="tablewrap"><table><thead><tr><th>Severity</th><th>What happened</th><th>When</th><th></th></tr></thead><tbody id="alerts"></tbody></table></div></div>
   <div class="card"><h2>Tags</h2><p class="muted">Tags appear here once CardForge encodes them. Counter is the highest tap accepted so far.</p><div class="tablewrap"><table><thead><tr><th>Tag UID</th><th>Brand</th><th>Batch</th><th>Status</th><th>Counter</th><th>Scans</th><th>Last scan</th><th></th></tr></thead><tbody id="tags"></tbody></table></div></div>
+  <div class="card"><h2>Pilot applications</h2><p class="muted">From the form on the landing page.</p><div class="tablewrap"><table><thead><tr><th>When</th><th>Name</th><th>Company</th><th>Email</th><th>Product</th><th>Units / month</th><th>Notes</th><th>Status</th></tr></thead><tbody id="leads"></tbody></table></div></div>
   <div class="card" id="testCard"><h2>Test tags (no hardware)</h2>
     <p class="muted">Pretend tags for trying the whole flow before real NTAG 424 tags arrive. Each "Tap" makes a fresh signed link, exactly like a real tag would. Scan the QR with your phone or open it. "Reuse last link" opens an old link again, to see a copied-link alert.</p>
     <form id="fTest"><label>Batch<select id="tBatch"></select></label><button class="btn primary" type="submit">Create test tag</button></form>
@@ -137,7 +138,8 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
       sb.from("tags").select("id, uid, status, chip, is_virtual, virtual_ctr, last_ctr, scan_count, last_scan_at, brands(name), batches(code)").order("encoded_at", { ascending: false }).limit(100),
       sb.from("scans").select("verdict", { count: "exact", head: false }).eq("source", "shopper"),
       sb.from("brands").select("id, name, slug").order("created_at"),
-      sb.from("batches").select("id, code, brands(name, slug), products(name)").order("created_at", { ascending: false })
+      sb.from("batches").select("id, code, brands(name, slug), products(name)").order("created_at", { ascending: false }),
+      sb.from("pilot_leads").select("id, created_at, name, email, company, product, volume, message, status").order("created_at", { ascending: false }).limit(100)
     ]);
     for (var i = 0; i < r.length; i++) if (r[i].error) return fail(r[i].error);
     var scans = r[0].data, alerts = r[1].data, tags = r[2].data, all = r[3].data, brands = r[4].data, batches = r[5].data.filter(function (b) { return !b.brands || b.brands.slug !== "selftest"; });
@@ -160,6 +162,11 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
       return '<tr><td class="mono">' + t.uid + chip + '</td><td>' + esc(t.brands && t.brands.name) + '</td><td class="mono">' + esc(t.batches && t.batches.code) + '</td><td><span class="pill ' + t.status + '">' + t.status + '</span></td><td class="mono">' + (t.last_ctr < 0 ? "—" : t.last_ctr) +
         '</td><td>' + t.scan_count + '</td><td>' + when(t.last_scan_at) + '</td><td>' + (t.status === "reset" ? "" : '<button class="btn" data-tag="' + t.id + '" data-to="' + (on ? "cancelled" : "active") + '" type="button">' + (on ? "Cancel" : "Restore") + '</button>') + '</td></tr>';
     }).join("") : '<tr><td colspan="8" class="muted">No tags yet.</td></tr>';
+    var leads = r[6].data;
+    $("leads").innerHTML = leads.length ? leads.map(function (l) {
+      var opts = ["new", "contacted", "pilot", "declined"].map(function (o) { return '<option' + (o === l.status ? " selected" : "") + '>' + o + '</option>'; }).join("");
+      return '<tr><td>' + when(l.created_at) + '</td><td>' + esc(l.name) + '</td><td>' + esc(l.company) + '</td><td><a href="mailto:' + esc(l.email) + '">' + esc(l.email) + '</a></td><td>' + esc(l.product || "—") + '</td><td>' + esc(l.volume || "—") + '</td><td>' + esc(l.message || "") + '</td><td><select data-lead="' + l.id + '">' + opts + '</select></td></tr>';
+    }).join("") : '<tr><td colspan="8" class="muted">No applications yet. Share the landing page to get some.</td></tr>';
     var vt = tags.filter(function (t) { return t.is_virtual; });
     $("vtags").innerHTML = vt.length ? vt.map(function (t) {
       return '<tr><td class="mono">' + t.uid + '</td><td>' + esc(t.brands && t.brands.name) + '</td><td class="mono">' + esc(t.batches && t.batches.code) + '</td><td class="mono">' + t.virtual_ctr + '</td><td class="mono">' + (t.last_ctr < 0 ? "—" : t.last_ctr) +
@@ -188,6 +195,12 @@ input, select { min-height: 42px; border-radius: 10px; border: 1px solid var(--l
     }
     return r.data;
   }
+  document.addEventListener("change", async function (e) {
+    var sel = e.target.closest("select[data-lead]");
+    if (!sel) return;
+    var res = await sb.from("pilot_leads").update({ status: sel.value }).eq("id", sel.dataset.lead);
+    if (res.error) fail(res.error);
+  });
   $("fTest").addEventListener("submit", async function (e) {
     e.preventDefault();
     if (!$("tBatch").value) return fail("Add a product and batch first.");
