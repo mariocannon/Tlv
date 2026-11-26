@@ -104,6 +104,12 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
       </div>
     </section>
 
+    <section class="trust" aria-label="Standards">
+      <div><b>Certified secure chips</b><span>NXP NTAG 424 DNA, certified to Common Criteria EAL4 by an independent lab.</span></div>
+      <div><b>Works on any NFC phone</b><span>Standard NFC Forum Type 4 tags. No app for shoppers.</span></div>
+      <div><b>Private by design</b><span>No shopper names or exact locations. Data kept in Australia. <a href={`${base}privacy/`}>Privacy</a></span></div>
+    </section>
+
     <!-- The core idea: a rolling code. This is a real sequence, so the tap numbers carry meaning. -->
     <section class="how" id="how">
       <div class="how-copy">
@@ -218,6 +224,7 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
   <footer>
     <span class="brand"><span class="seal" aria-hidden="true"><Guilloche size={120} rings={4} petals={10} weight={14} /></span>Verity</span>
     <span>Made on the Hibiscus Coast, Aotearoa New Zealand.</span>
+    <a href={`${base}privacy/`}>Privacy</a>
   </footer>
 
   <script define:vars={{ SUPABASE_URL, ANON_KEY }}>
@@ -349,6 +356,12 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
     .controls { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
     .demo-note { position: relative; z-index: 1; font-size: 13px; color: var(--muted); }
 
+    /* Trust strip */
+    main > section.trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px clamp(24px, 4vw, 56px); padding-top: 28px; padding-bottom: 28px; border-top: 1px solid var(--line); }
+    .trust div { display: grid; gap: 4px; align-content: start; }
+    .trust b { font-size: 16.5px; }
+    .trust span { font-size: 15px; color: var(--muted); }
+
     /* How it works */
     .how { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 88px); align-items: start; border-top: 1px solid var(--line); }
     .how-copy { display: grid; gap: 18px; max-width: 34em; }
@@ -419,7 +432,7 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
     footer .brand { color: var(--ink); font-size: 18px; }
 
     @media (max-width: 900px) {
-      .hero, .how, .pilot, .brands .cols, .case { grid-template-columns: 1fr; }
+      .hero, .how, .pilot, .brands .cols, .case, main > section.trust { grid-template-columns: 1fr; }
       nav a:not(.btn) { display: none; }
       .hero h1 { max-width: 12ch; }
       .phone { width: min(270px, 74vw); aspect-ratio: 9 / 15.5; }
