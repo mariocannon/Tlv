@@ -19,6 +19,8 @@ import java.util.TimeZone;
 public final class VerityApi {
 
     // Public project settings. The anon key is meant to be public; staff rights come from the signed-in user.
+    /** Where the Verity website lives (landing page, tap page /t/, dashboard /dashboard/). Change here when moving to a custom domain. */
+    public static final String SITE = "https://mariocannon.github.io/Tlv/";
     public static final String URL_BASE = "https://emcuwvuouggvdwnowlwr.supabase.co";
     public static final String ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtY3V3dnVvdWdndmR3bm93bHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTczNDIsImV4cCI6MjExMDk3MzM0Mn0.AezCpoLohG9fX3pXJJkWA6iCxWEtwCJD31hcdyRk4UM";
 
