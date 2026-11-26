@@ -8,6 +8,30 @@ const SUPABASE_URL = "https://emcuwvuouggvdwnowlwr.supabase.co";
 const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtY3V3dnVvdWdndmR3bm93bHdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTczNDIsImV4cCI6MjExMDk3MzM0Mn0.AezCpoLohG9fX3pXJJkWA6iCxWEtwCJD31hcdyRk4UM";
 
+const cases = [
+  {
+    title: "Mānuka honey",
+    where: "A beekeeper exporting UMF-graded jars",
+    problem: "Mānuka is one of New Zealand's most copied products. Overseas, look-alike jars and refilled genuine jars sit on the same shelves, and the buyer has no way to tell them apart.",
+    verity: "A tag goes under the label of each jar, linked to its batch and UMF test. A refilled jar gives itself away: its tag starts showing up in places that jar never went, and the brand sees it on the dashboard.",
+    sees: "The brand's name, the batch, the grade and where it was harvested, confirmed in a second. No app, in any language their phone uses.",
+  },
+  {
+    title: "Pounamu",
+    where: "A carver selling NZ greenstone pendants",
+    problem: "Imported stone and machine-made pieces are sold as hand-carved New Zealand pounamu. To a visitor in a souvenir shop, they look the same.",
+    verity: "A small tag goes on the presentation card or inside the box, registered when the piece is finished, with the carver's name and where the stone came from.",
+    sees: "Who carved the piece, the stone's origin and its story. If the piece is resold, the next owner can check it too.",
+  },
+  {
+    title: "Art and limited prints",
+    where: "An artist selling originals and numbered editions",
+    problem: "Paper certificates are easy to forge, and prints get reproduced beyond the edition. Buyers on the resale market have no reliable way to check.",
+    verity: "Each original or numbered print gets a tag on the back of the frame or on its certificate, tied to that exact work and edition number.",
+    sees: "Title, edition number, date and artist, confirmed by the artist's own record. A second print 7 of 50 shows up as a copy.",
+  },
+];
+
 const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear", "Trading cards and collectables", "Supplements and skincare"];
 ---
 <!doctype html>
@@ -33,6 +57,7 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
     <nav aria-label="Main">
       <a href="#how">How it works</a>
       <a href="#brands">For brands</a>
+      <a href="#examples">Examples</a>
       <a href="#faq">Questions</a>
       <a class="btn small" href="#pilot">Apply for the pilot</a>
     </nav>
@@ -110,6 +135,26 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
       </div>
     </section>
 
+    <section class="cases" id="examples">
+      <div class="cases-head">
+        <h2>Three ways it could work</h2>
+        <p>Example scenarios to show how Verity fits different products. They're not results from existing customers.</p>
+      </div>
+      {cases.map((c) => (
+        <article class="case">
+          <div class="case-title">
+            <h3>{c.title}</h3>
+            <p class="case-tag">{c.where}</p>
+          </div>
+          <dl>
+            <div><dt>The problem</dt><dd>{c.problem}</dd></div>
+            <div><dt>With Verity</dt><dd>{c.verity}</dd></div>
+            <div><dt>What the buyer sees</dt><dd>{c.sees}</dd></div>
+          </dl>
+        </article>
+      ))}
+    </section>
+
     <section class="pilot" id="pilot">
       <div class="pilot-copy">
         <h2>Join the pilot</h2>
@@ -173,7 +218,6 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
   <footer>
     <span class="brand"><span class="seal" aria-hidden="true"><Guilloche size={120} rings={4} petals={10} weight={14} /></span>Verity</span>
     <span>Made on the Hibiscus Coast, Aotearoa New Zealand.</span>
-    <a href={`${base}dashboard/`}>Staff sign in</a>
   </footer>
 
   <script define:vars={{ SUPABASE_URL, ANON_KEY }}>
@@ -331,6 +375,17 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
     .fit li { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.3; }
     .fit p { color: #B9CABF; font-size: 15.5px; }
 
+    /* Examples */
+    .cases { border-top: 1px solid var(--line); }
+    .cases-head { display: grid; gap: 12px; max-width: 40em; margin-bottom: 36px; }
+    .cases-head p { color: var(--muted); font-size: 16.5px; }
+    .case { display: grid; grid-template-columns: 1fr 2.4fr; gap: 16px clamp(24px, 4vw, 56px); padding: 32px 0; border-top: 1px solid var(--line); }
+    .case-title h3 { font-size: clamp(26px, 3vw, 34px); }
+    .case-tag { margin-top: 8px; color: var(--muted); font-size: 15.5px; }
+    .case dl { margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .case dt { font-weight: 700; font-size: 15px; color: var(--bush); margin-bottom: 6px; }
+    .case dd { margin: 0; color: var(--muted); font-size: 16px; }
+
     /* Pilot */
     .pilot { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 88px); border-top: 1px solid var(--line); }
     .pilot-copy > p { margin-top: 14px; color: var(--muted); max-width: 30em; }
@@ -364,14 +419,14 @@ const categories = ["Mānuka honey", "Wine and spirits", "Fashion and streetwear
     footer .brand { color: var(--ink); font-size: 18px; }
 
     @media (max-width: 900px) {
-      .hero, .how, .pilot, .brands .cols { grid-template-columns: 1fr; }
+      .hero, .how, .pilot, .brands .cols, .case { grid-template-columns: 1fr; }
       nav a:not(.btn) { display: none; }
       .hero h1 { max-width: 12ch; }
       .phone { width: min(270px, 74vw); aspect-ratio: 9 / 15.5; }
       .stage { overflow: hidden; }
     }
     @media (max-width: 560px) {
-      .features, .apply .row { grid-template-columns: 1fr; }
+      .features, .apply .row, .case dl { grid-template-columns: 1fr; }
       .taps li { grid-template-columns: 1fr auto; }
       .taps code { grid-column: 1 / -1; grid-row: 2; }
       body { font-size: 17px; }
